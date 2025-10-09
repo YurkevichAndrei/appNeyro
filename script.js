@@ -49,11 +49,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // Инициализация кэша DOM элементов
     initializeDomCache();
 
+    // Проверяем поддержку webkitdirectory
+    const fileInput = document.getElementById('fileInput');
+    if (fileInput && 'webkitdirectory' in fileInput) {
+        initUploadModeToggle();
+    } else {
+        // Если браузер не поддерживает webkitdirectory, скрываем переключатель
+        console.warn('Браузер не поддерживает выбор папок');
+    }
+
     // Настройка элементов интерфейса
     initializeUI();
 
-    // Загрузка сохраненных данных (если есть)
-    loadSavedData();
+//    // Загрузка сохраненных данных (если есть)
+//    loadSavedData();
 });
 
 // Инициализация кэша DOM элементов для быстрого доступа
@@ -64,14 +73,19 @@ function initializeDomCache() {
         analyzeBtn: document.getElementById('analyzeBtn'),
         exportBtn: document.getElementById('exportBtn'),
         saveSettings: document.getElementById('saveSettings'),
+        settingsForm: document.getElementById('settingsForm'),
         detectionLimit: document.getElementById('detectionLimit'),
         detectionLimitValue: document.getElementById('detectionLimitValue'),
         imagePreview: document.getElementById('imagePreview'),
-        currentImageName: document.getElementById('currentImageName'),
+//        currentImageName: document.getElementById('currentImageName'),
         detectedObjects: document.getElementById('detectedObjects'),
         imageList: document.getElementById('imageList'),
-        imageCount: document.getElementById('imageCount'),
-        exportResults: document.getElementById('exportResults')
+//        imageCount: document.getElementById('imageCount'),
+        exportResults: document.getElementById('exportResults'),
+        navbarItemUploadBtn: document.getElementById('navbarUploadBtn'),
+        detectedObjectsCard: document.getElementById('detectedObjectsCard'),
+        previewCard: document.getElementById('previewCard'),
+        previewAndDetectedRow: document.getElementById('previewAndDetectedRow')
     };
 }
 
@@ -91,35 +105,97 @@ function initializeUI() {
     domCache.detectionLimit.addEventListener('input', function() {
         domCache.detectionLimitValue.textContent = this.value;
     });
+//    domCache.detectedObjectsCard.hidden = true;
+//    domCache.previewCard.hidden = true;
+////    domCache.previewAndDetectedRow.hidden = true;
+//    domCache.analyzeBtn.hidden = true;
+//    domCache.exportBtn.hidden = true;
 }
 
-// Обработка загрузки файлов
+// Добавляем переключатель режима загрузки
+function initUploadModeToggle() {
+    const toggleContainer = document.createElement('div');
+    toggleContainer.className = 'mb-3 form-check form-switch';
+    toggleContainer.innerHTML = `
+        <input type="checkbox" class="form-check-input" id="folderMode" checked>
+        <label class="form-check-label" for="folderMode">Загрузка папки</label>
+    `;
+
+    if (domCache.detectionLimit.parentNode && domCache.detectionLimit.parentNode.parentNode) {
+        domCache.detectionLimit.parentNode.parentNode.insertBefore(toggleContainer, domCache.detectionLimit.parentNode);
+
+        document.getElementById('folderMode').addEventListener('change', function(e) {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput) {
+                if (e.target.checked) {
+                    fileInput.setAttribute('webkitdirectory', '');
+                    fileInput.setAttribute('directory', '');
+                    fileInput.removeAttribute('multiple');
+                } else {
+                    fileInput.removeAttribute('webkitdirectory');
+                    fileInput.removeAttribute('directory');
+                    fileInput.setAttribute('multiple', '');
+                }
+            }
+        });
+    }
+}
+
+// Упрощенная функция загрузки с поддержкой папок
 function handleFileUpload(event) {
     const files = event.target.files;
-    if (files.length === 0) return;
+    if (!files || files.length === 0) return;
 
     // Показываем индикатор загрузки
     const originalText = domCache.uploadBtn.innerHTML;
     domCache.uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Загрузка...';
     domCache.uploadBtn.disabled = true;
 
-    // Используем Promise для обработки всех файлов
     const filePromises = [];
+    const processedFiles = new Set();
+
+    // Собираем статистику по папкам
+    const folderStats = {
+        total: 0,
+        images: 0,
+        folders: new Set()
+    };
 
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        if (!file.type.match('image.*')) continue;
+        folderStats.total++;
+
+        // Определяем путь файла
+        const filePath = file.webkitRelativePath || file.name;
+        const folderPath = filePath.includes('/') ? filePath.split('/').slice(0, -1).join('/') : 'корневая папка';
+
+        if (folderPath !== 'корневая папка') {
+            folderStats.folders.add(folderPath);
+        }
+
+        // Пропускаем не-изображения и дубликаты
+        if (!file.type.match('image.*') || processedFiles.has(filePath)) {
+            continue;
+        }
+
+        processedFiles.add(filePath);
+        folderStats.images++;
 
         filePromises.push(new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = function(e) {
                 const imageData = {
-                    id: Date.now() + i,
+                    id: Date.now() + i + Math.random(),
                     name: file.name,
                     url: e.target.result,
-                    analyzed: false
+                    analyzed: false,
+                    path: filePath
                 };
                 resolve(imageData);
+            };
+            reader.onerror = function() {
+                console.error('Ошибка чтения файла:', file.name);
+                resolve(null);
             };
             reader.readAsDataURL(file);
         }));
@@ -127,24 +203,135 @@ function handleFileUpload(event) {
 
     // Обрабатываем все промисы
     Promise.all(filePromises).then(images => {
-        uploadedImages.push(...images);
-        updateImageList();
+        const successfulImages = images.filter(img => img !== null);
 
-        // Если это первое изображение, показываем его в превью
-        if (uploadedImages.length === images.length) {
-            selectImage(0);
+        if (successfulImages.length > 0) {
+            uploadedImages.push(...successfulImages);
+            updateImageList();
+
+            if (currentImageIndex === -1 && uploadedImages.length > 0) {
+                selectImage(0);
+            }
+
+            // Детальное уведомление о результате
+            const folderCount = folderStats.folders.size;
+            const folderText = folderCount > 0 ? ` из ${folderCount} папок` : '';
+            showNotification(
+                `Успешно загружено ${successfulImages.length} изображений${folderText} (найдено ${folderStats.images} изображений из ${folderStats.total} файлов)`,
+                'success'
+            );
+        } else {
+            showNotification(
+                `Не удалось загрузить изображения. Найдено ${folderStats.images} изображений из ${folderStats.total} файлов`,
+                'warning'
+            );
         }
 
         // Восстанавливаем кнопку
         domCache.uploadBtn.innerHTML = originalText;
         domCache.uploadBtn.disabled = false;
 
-        // Сохраняем данные
-        saveToLocalStorage();
-    });
+//        // Сохраняем данные
+//        saveToLocalStorage();
+    }).catch(error => {
+        console.error('Ошибка при загрузке изображений:', error);
+        showNotification('Произошла ошибка при загрузке изображений', 'error');
 
+        // Восстанавливаем кнопку в случае ошибки
+        domCache.uploadBtn.innerHTML = originalText;
+        domCache.uploadBtn.disabled = false;
+    });
+    domCache.previewCard.hidden = false;
+//    domCache.previewAndDetectedRow.hidden = false;
+    domCache.detectedObjectsCard.hidden = true;
+    domCache.analyzeBtn.hidden = false;
     // Очистка input для возможности повторной загрузки тех же файлов
     event.target.value = '';
+}
+
+// Функция для показа уведомлений
+function showNotification(message, type = 'info') {
+    // Удаляем предыдущие уведомления
+    const existingAlerts = document.querySelectorAll('.alert');
+    existingAlerts.forEach(alert => {
+        if (alert.parentNode) {
+            alert.parentNode.removeChild(alert);
+        }
+    });
+
+    // Создаем элемент уведомления
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show mt-3`;
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    // Вставляем уведомление в DOM
+    const container = document.querySelector('.container');
+    if (container) {
+        container.insertBefore(notification, container.firstChild);
+
+        // Автоматически скрываем через 5 секунд
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+}
+
+//// Улучшенная функция отображения списка с путями
+//function updateImageList() {
+//    if (!domCache.imageList) return;
+//
+//    domCache.imageList.innerHTML = '';
+//
+//    uploadedImages.forEach((image, index) => {
+//        const listItem = document.createElement('div');
+//        listItem.className = `list-group-item list-group-item-action d-flex justify-content-between align-items-center ${index === currentImageIndex ? 'active' : ''}`;
+//
+//        // Отображаем путь, если он отличается от имени файла
+//        const displayPath = image.path && image.path !== image.name ?
+//        `<small class="text-muted d-block mt-1">${truncatePath(image.path, 40)}</small>` : '';
+//
+//        listItem.innerHTML = `
+//            <div class="flex-grow-1">
+//                <div class="fw-bold">${image.name}</div>
+//                ${displayPath}
+//            </div>
+//            <div class="ms-2">
+//                <span class="badge bg-${image.analyzed ? 'success' : 'secondary'} me-1">
+//                    ${image.analyzed ? 'Анализ' : 'Не анализировано'}
+//                </span>
+//                <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); removeImage(${image.id})">
+//                    <i class="fas fa-times"></i>
+//                </button>
+//            </div>
+//        `;
+//
+//        listItem.addEventListener('click', () => selectImage(index));
+//        domCache.imageList.appendChild(listItem);
+//    });
+//}
+
+// Функция для обрезки длинных путей
+function truncatePath(path, maxLength) {
+    if (!path || path.length <= maxLength) return path;
+
+    const parts = path.split('/');
+    if (parts.length <= 2) return path.substring(0, maxLength) + '...';
+
+    // Оставляем первую и последнюю часть пути
+    const firstPart = parts[0];
+    const lastPart = parts[parts.length - 1];
+    const remainingLength = maxLength - firstPart.length - lastPart.length - 5; // -5 для ".../"
+
+    if (remainingLength <= 0) {
+        return firstPart + '/.../' + lastPart;
+    }
+
+    return firstPart + '/.../' + lastPart;
 }
 
 // Обновление списка изображений
@@ -156,7 +343,7 @@ function updateImageList() {
                 <p class="text-muted">Изображения не загружены</p>
             </div>
         `;
-        domCache.imageCount.textContent = '0 изображений';
+//        domCache.imageCount.textContent = '0 изображений';
         return;
     }
 
@@ -176,7 +363,7 @@ function updateImageList() {
 
     html += '</div>';
     domCache.imageList.innerHTML = html;
-    domCache.imageCount.textContent = `${uploadedImages.length} изображений`;
+//    domCache.imageCount.textContent = `${uploadedImages.length} изображений`;
 
     // Добавляем обработчики клика на миниатюры с делегированием событий
     domCache.imageList.addEventListener('click', function(e) {
@@ -206,7 +393,7 @@ function selectImage(index) {
     }
 
     // Обновляем название текущего изображения
-    domCache.currentImageName.textContent = image.name;
+//    domCache.currentImageName.textContent = image.name;
 
     // Обновляем список распознанных объектов
     updateDetectedObjectsList();
@@ -257,9 +444,11 @@ function updateDetectedObjectsList() {
             const imageId = e.target.getAttribute('data-image');
             const objIndex = parseInt(e.target.getAttribute('data-index'));
             detectedObjects[imageId][objIndex].verified = e.target.checked;
-            saveToLocalStorage();
+//            saveToLocalStorage();
         }
     });
+    domCache.detectedObjectsCard.hidden = false;
+    domCache.exportBtn.hidden = false;
 }
 
 // Анализ изображений
@@ -297,12 +486,12 @@ function analyzeImages() {
         analyzeBtn.innerHTML = originalText;
         analyzeBtn.disabled = false;
 
-        // Сохраняем данные
-        saveToLocalStorage();
+//        // Сохраняем данные
+//        saveToLocalStorage();
 
         // Показываем уведомление об успехе
         showNotification('Анализ завершен!', 'success');
-    }, 1500);
+    }, 0);
 }
 
 // Генерация случайных объектов для имитации
@@ -385,8 +574,8 @@ function saveSettings() {
     const modal = bootstrap.Modal.getInstance(document.getElementById('settingsModal'));
     modal.hide();
 
-    // Сохраняем настройки
-    saveToLocalStorage();
+//    // Сохраняем настройки
+//    saveToLocalStorage();
 
     showNotification('Настройки сохранены!', 'success');
 }
@@ -413,44 +602,44 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
-// Сохранение данных в localStorage
-function saveToLocalStorage() {
-    const data = {
-        uploadedImages: uploadedImages,
-        currentImageIndex: currentImageIndex,
-        detectedObjects: detectedObjects,
-        settings: settings
-    };
-
-    localStorage.setItem('visionAnalyzerData', JSON.stringify(data));
-}
-
-// Загрузка данных из localStorage
-function loadSavedData() {
-    const savedData = localStorage.getItem('visionAnalyzerData');
-
-    if (savedData) {
-        const data = JSON.parse(savedData);
-
-        uploadedImages = data.uploadedImages || [];
-        currentImageIndex = data.currentImageIndex || -1;
-        detectedObjects = data.detectedObjects || {};
-        settings = data.settings || settings;
-
-        // Восстанавливаем интерфейс
-        updateImageList();
-
-        if (currentImageIndex >= 0 && currentImageIndex < uploadedImages.length) {
-            selectImage(currentImageIndex);
-        }
-
-        // Восстанавливаем настройки в форме
-        document.getElementById('detectionLimit').value = settings.detectionLimit;
-        document.getElementById('detectionLimitValue').textContent = settings.detectionLimit;
-        document.getElementById('georeference').checked = settings.georeference;
-        document.getElementById('pixelSize').value = settings.pixelSize;
-        document.getElementById('objectTheme').value = settings.objectTheme;
-
-        showNotification('Данные восстановлены', 'info');
-    }
-}
+//// Сохранение данных в localStorage
+//function saveToLocalStorage() {
+//    const data = {
+//        uploadedImages: uploadedImages,
+//        currentImageIndex: currentImageIndex,
+//        detectedObjects: detectedObjects,
+//        settings: settings
+//    };
+//
+//    localStorage.setItem('visionAnalyzerData', JSON.stringify(data));
+//}
+//
+//// Загрузка данных из localStorage
+//function loadSavedData() {
+//    const savedData = localStorage.getItem('visionAnalyzerData');
+//
+//    if (savedData) {
+//        const data = JSON.parse(savedData);
+//
+//        uploadedImages = data.uploadedImages || [];
+//        currentImageIndex = data.currentImageIndex || -1;
+//        detectedObjects = data.detectedObjects || {};
+//        settings = data.settings || settings;
+//
+//        // Восстанавливаем интерфейс
+//        updateImageList();
+//
+//        if (currentImageIndex >= 0 && currentImageIndex < uploadedImages.length) {
+//            selectImage(currentImageIndex);
+//        }
+//
+//        // Восстанавливаем настройки в форме
+//        document.getElementById('detectionLimit').value = settings.detectionLimit;
+//        document.getElementById('detectionLimitValue').textContent = settings.detectionLimit;
+//        document.getElementById('georeference').checked = settings.georeference;
+//        document.getElementById('pixelSize').value = settings.pixelSize;
+//        document.getElementById('objectTheme').value = settings.objectTheme;
+//
+//        showNotification('Данные восстановлены', 'info');
+//    }
+//}
