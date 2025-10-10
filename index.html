@@ -23,153 +23,36 @@
     </div>
 </nav>
 
-
-<!--<div class="offcanvas offcanvas-top" tabindex="-1" id="offcanvasTop" aria-labelledby="offcanvasTopLabel">-->
-<!--    <div class="offcanvas-header">-->
-<!--        <h5 class="offcanvas-title" id="offcanvasTopLabel">Действия</h5>-->
-<!--        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Закрыть"></button>-->
-<!--    </div>-->
-<!--    <div class="offcanvas-body">-->
-<!--        <div class="container-fluid mt-4">-->
-<!--            <div class="row g-3">-->
-<!--                &lt;!&ndash; Левая колонка - превью изображения &ndash;&gt;-->
-<!--                <div class="col-lg-4">-->
-<!--                    <div class="card custom-card custom-card-top h-100">-->
-<!--                        <div class="card-header custom-card-header d-flex justify-content-between align-items-center" id="card-header-upload-image">-->
-<!--                            <h5 class="mb-0">-->
-<!--                                <i class="fas fa-image me-2"></i>Загрузка изображений-->
-<!--                            </h5>-->
-<!--                        </div>-->
-<!--                        <div class="card-body text-center p-0 d-flex justify-content-center align-items-center">-->
-<!--                            <div class="loadFunc" id="navbarUploadBtn">-->
-<!--                                <label for="fileInput" class="btn btn-accent me-2" id="uploadBtn">-->
-<!--                                    <i class="fas fa-upload me-1"></i>Загрузить изображения-->
-<!--                                </label>-->
-<!--                            </div>-->
-<!--                        </div>-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--                <div class="col-lg-4">-->
-<!--                    <div class="card custom-card custom-card-top h-100">-->
-<!--                        <div class="card-header custom-card-header d-flex justify-content-between align-items-center" id="card-header-params">-->
-<!--                            <h5 class="mb-0">-->
-<!--                                <i class="fas fa-cog me-2"></i>Настройки анализа-->
-<!--                            </h5>-->
-<!--                        </div>-->
-<!--                        <div class="card-body text-center p-0 d-flex justify-content-center align-items-center">-->
-<!--                            <div class="paramsFunc">-->
-<!--                                <button class="btn btn-accent me-2" data-bs-toggle="modal" data-bs-target="#settingsModal">-->
-<!--                                    <i class="fas fa-cog me-1"></i> Настройки-->
-<!--                                </button>-->
-<!--                            </div>-->
-<!--                        </div>-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--                <div class="col-lg-4">-->
-<!--                    <div class="card custom-card custom-card-top h-100">-->
-<!--                        <div class="card-header custom-card-header d-flex justify-content-between align-items-center" id="card-header-export">-->
-<!--                            <h5 class="mb-0">-->
-<!--                                <i class="fas fa-file-export me-2"></i>Экспорт-->
-<!--                            </h5>-->
-<!--                        </div>-->
-<!--                        <div class="card-body text-center p-0 d-flex justify-content-center align-items-center">-->
-<!--                            <div class="exportFunc">-->
-<!--                                <button class="btn btn-accent me-2" data-bs-toggle="offcanvas" data-bs-target="#offcanvasBottom" aria-controls="offcanvasBottom" id="exportBtn">-->
-<!--                                    <i class="fas fa-download me-1"></i> Экспорт-->
-<!--                                </button>-->
-<!--                            </div>-->
-<!--                        </div>-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--            </div>-->
-<!--        </div>-->
-<!--    </div>-->
-<!--</div>-->
-
 <!-- Основной контент -->
 <div class="container-fluid mt-4">
     <div class="row mt-4">
-        <div class="card custom-card h-100">
-            <div class="btn-toolbar d-flex justify-content-between align-items-center" role="toolbar">
-                <div class="btn-group me-2" role="group">
-                    <label for="fileInput" class="btn btn-accent me-2" id="uploadBtn">
-                          <i class="fas fa-upload me-1"></i>Загрузить изображения
-                    </label>
-                    <button class="btn btn-accent me-2" data-bs-toggle="modal" data-bs-target="#settingsModal">
-                        <i class="fas fa-cog me-1"></i> Настройки
-                    </button>
-                    <button class="btn btn-accent me-2" id="analyzeBtn">
-                        <i class="fas fa-search me-1"></i> Анализировать
-                    </button>
-                    <button class="btn btn-accent me-2" data-bs-toggle="offcanvas" data-bs-target="#offcanvasBottom" aria-controls="offcanvasBottom" id="exportBtn">
-                        <i class="fas fa-download me-1"></i> Экспорт
-                    </button>
+        <div class="col-lg-17">
+            <div class="card custom-card h-100 toolbar">
+                <div class="btn-toolbar" role="toolbar">
+                    <div class="btn-group me-2" role="group">
+                        <label for="fileInput" class="btn btn-accent me-2" id="uploadBtn">
+                            <i class="fas fa-upload me-1"></i>Загрузить изображения
+                        </label>
+                        <button class="btn btn-accent me-2" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                            <i class="fas fa-cog me-1"></i> Настройки
+                        </button>
+                        <button class="btn btn-accent me-2" id="analyzeBtn">
+                            <i class="fas fa-search me-1"></i> Анализировать
+                        </button>
+                        <button class="btn btn-accent me-2" data-bs-toggle="offcanvas" data-bs-target="#offcanvasBottom" aria-controls="offcanvasBottom" id="exportBtn">
+                            <i class="fas fa-download me-1"></i> Экспорт
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
+
     </div>
 
-                        <!--    <div class="row g-3">-->
-<!--        &lt;!&ndash; Левая колонка - превью изображения &ndash;&gt;-->
-<!--        <div class="col-lg-4" id="uploadCard">-->
-<!--            <div class="card custom-card custom-card-top h-100">-->
-<!--                <div class="card-header custom-card-header d-flex justify-content-between align-items-center" id="card-header-upload-image">-->
-<!--                    <h5 class="mb-0">-->
-<!--                        <i class="fas fa-image me-2"></i>Загрузка изображений-->
-<!--                    </h5>-->
-<!--                </div>-->
-<!--                <div class="card-body text-center p-0 d-flex justify-content-center align-items-center">-->
-<!--                    <div class="loadFunc" id="navbarUploadBtn">-->
-<!--                        <label for="fileInput" class="btn btn-accent me-2" id="uploadBtn">-->
-<!--                            <i class="fas fa-upload me-1"></i>Загрузить изображения-->
-<!--                        </label>-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--            </div>-->
-<!--        </div>-->
-<!--        <div class="col-lg-4" id="paramsAnalyzeCard">-->
-<!--            <div class="card custom-card custom-card-top h-100">-->
-<!--                <div class="card-header custom-card-header d-flex justify-content-between align-items-center" id="card-header-params">-->
-<!--                    <h5 class="mb-0">-->
-<!--                        <i class="fas fa-cog me-2"></i>Настройки анализа-->
-<!--                    </h5>-->
-<!--                </div>-->
-<!--                <div class="card-body text-center p-0 d-flex justify-content-center align-items-center">-->
-<!--                    <div class="paramsFunc">-->
-<!--                        <button class="btn btn-accent me-2" data-bs-toggle="modal" data-bs-target="#settingsModal">-->
-<!--                            <i class="fas fa-cog me-1"></i> Настройки-->
-<!--                        </button>-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--            </div>-->
-<!--        </div>-->
-<!--        <div class="col-lg-4" id="cardExport">-->
-<!--            <div class="card custom-card custom-card-top h-100">-->
-<!--                <div class="card-header custom-card-header d-flex justify-content-between align-items-center" id="card-header-export">-->
-<!--                    <h5 class="mb-0">-->
-<!--                        <i class="fas fa-file-export me-2"></i>Экспорт-->
-<!--                    </h5>-->
-<!--                </div>-->
-<!--                <div class="card-body text-center p-0 d-flex justify-content-center align-items-center">-->
-<!--                    <div class="exportFunc">-->
-<!--                        <button class="btn btn-accent me-2" data-bs-toggle="offcanvas" data-bs-target="#offcanvasBottom" aria-controls="offcanvasBottom" id="exportBtn">-->
-<!--                            <i class="fas fa-download me-1"></i> Экспорт-->
-<!--                        </button>-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--            </div>-->
-<!--        </div>-->
-<!--    </div>-->
-    <div class="row g-3" id="previewAndDetectedRow">
+    <div class="row mt-4" id="previewAndDetectedRow">
         <!-- Левая колонка - превью изображения -->
         <div class="col-lg-8" id="previewCard">
             <div class="card custom-card h-100">
-<!--                <div class="card-header custom-card-header d-flex justify-content-between align-items-center">-->
-<!--                    <h5 class="mb-0">-->
-<!--                        <i class="fas fa-image me-2"></i>Превью изображения-->
-<!--                    </h5>-->
-<!--                    <span class="badge bg-accent" id="currentImageName">Не выбрано</span>-->
-<!--                </div>-->
                 <div class="card-body text-center p-0">
                     <div id="imagePreview" class="image-preview">
                         <div class="preview-placeholder">
@@ -182,29 +65,12 @@
         </div>
 
         <div class="col-lg-4 d-flex flex-column gap-2">
-            <!-- Правая колонка - распознанные объекты -->
-            <div class="row g-3 flex-fill" id="detectedObjectsCard">
-                <div class="card custom-card">
-<!--                    <div class="card-header custom-card-header">-->
-<!--                        <div class="row">-->
-<!--                            <div class="col align-self-center">-->
-<!--                                <h5 class="mb-0">-->
-<!--                                    <i class="fas fa-object-group me-2"></i>Распознанные объекты-->
-<!--                                </h5>-->
-<!--                            </div>-->
-<!--                            <div class="col text-end">-->
-<!--                                <button class="btn btn-success" id="exportBtn">-->
-<!--                                    <i class="fas fa-download me-1"></i> Экспорт-->
-<!--                                </button>-->
-<!--                            </div>-->
-<!--                        </div>-->
-<!--                    </div>-->
-                    <div class="card-body">
-                        <div id="detectedObjects" class="detected-objects">
-                            <div class="empty-state">
-                                <i class="fas fa-search mb-3"></i>
-                                <p class="text-muted">Объекты будут отображены здесь после анализа</p>
-                            </div>
+            <div class="card custom-card" id="detectedObjectsCard">
+                <div class="card-body">
+                    <div id="detectedObjects" class="detected-objects">
+                        <div class="empty-state">
+                            <i class="fas fa-search mb-3"></i>
+                            <p class="text-muted">Объекты будут отображены здесь после анализа</p>
                         </div>
                     </div>
                 </div>
