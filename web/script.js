@@ -141,6 +141,32 @@ function initUploadModeToggle() {
     }
 }
 
+// Предполагается, что `fileList` - это массив файлов, полученных из input
+async function uploadToServer(fileList) {
+    const formData = new FormData();
+
+    // Добавляем все файлы в FormData
+    fileList.forEach(file => {
+        formData.append('photos', file); // 'photos' должно совпадать с именем поля на сервере
+    });
+
+    try {
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData // Content-Type устанавливается автоматически как multipart/form-data
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Фотографии успешно загружены!', result);
+        } else {
+            console.error('Ошибка при загрузке:', response.status);
+        }
+    } catch (error) {
+        console.error('Сетевая ошибка:', error);
+    }
+}
+
 // Упрощенная функция загрузки с поддержкой папок
 function handleFileUpload(event) {
     const files = event.target.files;
