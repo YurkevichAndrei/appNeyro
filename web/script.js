@@ -72,6 +72,7 @@ function initializeDomCache() {
         fileInput: document.getElementById('fileInput'),
         analyzeBtn: document.getElementById('analyzeBtn'),
         exportBtn: document.getElementById('exportBtn'),
+        paramsBtn: document.getElementById('paramsBtn'),
         saveSettings: document.getElementById('saveSettings'),
         settingsForm: document.getElementById('settingsForm'),
         detectionLimit: document.getElementById('detectionLimit'),
@@ -105,11 +106,10 @@ function initializeUI() {
     domCache.detectionLimit.addEventListener('input', function() {
         domCache.detectionLimitValue.textContent = this.value;
     });
-//    domCache.detectedObjectsCard.hidden = true;
-//    domCache.previewCard.hidden = true;
-////    domCache.previewAndDetectedRow.hidden = true;
-//    domCache.analyzeBtn.hidden = true;
-//    domCache.exportBtn.hidden = true;
+
+    domCache.analyzeBtn.disabled = true;
+    domCache.exportBtn.disabled = true;
+    domCache.paramsBtn.disabled = true;
 }
 
 // Добавляем переключатель режима загрузки
@@ -230,6 +230,9 @@ function handleFileUpload(event) {
         // Восстанавливаем кнопку
         domCache.uploadBtn.innerHTML = originalText;
         domCache.uploadBtn.disabled = false;
+        domCache.analyzeBtn.disabled = true;
+        domCache.exportBtn.disabled = true;
+        domCache.paramsBtn.disabled = false;
 
 //        // Сохраняем данные
 //        saveToLocalStorage();
@@ -241,10 +244,6 @@ function handleFileUpload(event) {
         domCache.uploadBtn.innerHTML = originalText;
         domCache.uploadBtn.disabled = false;
     });
-    domCache.previewCard.hidden = false;
-//    domCache.previewAndDetectedRow.hidden = false;
-    domCache.detectedObjectsCard.hidden = true;
-    domCache.analyzeBtn.hidden = false;
     // Очистка input для возможности повторной загрузки тех же файлов
     event.target.value = '';
 }
@@ -466,6 +465,7 @@ function analyzeImages() {
 
     // Имитация анализа с задержкой
     setTimeout(() => {
+        // нужно будет переделать под работу с сервером
         // Анализируем каждое изображение
         uploadedImages.forEach(image => {
             if (!image.analyzed) {
@@ -491,6 +491,12 @@ function analyzeImages() {
 
         // Показываем уведомление об успехе
         showNotification('Анализ завершен!', 'success');
+
+        domCache.uploadBtn.disabled = true;
+        domCache.analyzeBtn.disabled = false;
+        domCache.exportBtn.disabled = false;
+        domCache.paramsBtn.disabled = true;
+
     }, 0);
 }
 
@@ -559,6 +565,11 @@ function exportResults() {
         if (e.target.tagName === 'BUTTON') {
             const format = e.target.previousElementSibling.previousElementSibling.textContent;
             showNotification(`Имитация скачивания ${format} файла`, 'info');
+
+            domCache.uploadBtn.disabled = false;
+            domCache.analyzeBtn.disabled = true;
+            domCache.exportBtn.disabled = false;
+            domCache.paramsBtn.disabled = true;
         }
     });
 }
@@ -578,29 +589,35 @@ function saveSettings() {
 //    saveToLocalStorage();
 
     showNotification('Настройки сохранены!', 'success');
+
+    domCache.uploadBtn.disabled = true;
+    domCache.analyzeBtn.disabled = false;;
+    domCache.exportBtn.disabled = true;
+    domCache.paramsBtn.disabled = false;
+
 }
 
-// Показать уведомление
-function showNotification(message, type = 'info') {
-    // Создаем элемент уведомления
-    const notification = document.createElement('div');
-    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-    notification.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
-    notification.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-
-    // Добавляем уведомление на страницу
-    document.body.appendChild(notification);
-
-    // Автоматически удаляем уведомление через 3 секунды
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.parentNode.removeChild(notification);
-        }
-    }, 3000);
-}
+//// Показать уведомление
+//function showNotification(message, type = 'info') {
+//    // Создаем элемент уведомления
+//    const notification = document.createElement('div');
+//    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+//    notification.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+//    notification.innerHTML = `
+//        ${message}
+//        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+//    `;
+//
+//    // Добавляем уведомление на страницу
+//    document.body.appendChild(notification);
+//
+//    // Автоматически удаляем уведомление через 3 секунды
+//    setTimeout(() => {
+//        if (notification.parentNode) {
+//            notification.parentNode.removeChild(notification);
+//        }
+//    }, 3000);
+//}
 
 //// Сохранение данных в localStorage
 //function saveToLocalStorage() {
@@ -643,3 +660,8 @@ function showNotification(message, type = 'info') {
 //        showNotification('Данные восстановлены', 'info');
 //    }
 //}
+
+
+
+
+//nuctl deploy --project-name cvat --path serverless/pytorch/mis/yolorgb/nuclio --platform local --base-image nvidia/cuda:11.7.1-devel-ubuntu20.04 --image cvat/cvat.pth.mis.yolorgb.gpu --triggers '{"myHttpTrigger": {"maxWorkers": 1}}' --resource-limit nvidia.com/gpu=1
