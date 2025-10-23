@@ -126,7 +126,7 @@ class ImageViewer {
 // Инициализация после загрузки изображения
 const viewer = new ImageViewer('imageContainer');
 
-//// Пример добавления фигур после загрузки
+// Пример добавления фигур после загрузки
 //viewer.img.onload = function() {
 //    // Круг в центре изображения
 //    viewer.addCircle(50, 50, 30, 'Center Point');

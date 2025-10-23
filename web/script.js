@@ -141,24 +141,25 @@ function initUploadModeToggle() {
     }
 }
 
-// Предполагается, что `fileList` - это массив файлов, полученных из input
+// `fileList` - это массив файлов, полученных из input
 async function uploadToServer(fileList) {
     const formData = new FormData();
 
     // Добавляем все файлы в FormData
-    fileList.forEach(file => {
-        formData.append('photos', file); // 'photos' должно совпадать с именем поля на сервере
-    });
-
+    for (let i = 0; i < fileList.length; i++) {
+        formData.append('images', fileList[i]); // 'images' - название поля на сервере
+    }
     try {
-        const response = await fetch('/api/upload', {
+        const response = await fetch('http://127.0.0.1:8000/upload-images', {
             method: 'POST',
-            body: formData // Content-Type устанавливается автоматически как multipart/form-data
+            body: formData, // Content-Type устанавливается автоматически как multipart/form-data
+            mode: 'cors', // можно не указывать, так как это значение по умолчанию
+            credentials: 'same-origin' // или 'include', если нужно отправлять куки на другой домен
         });
 
         if (response.ok) {
             const result = await response.json();
-            console.log('Фотографии успешно загружены!', result);
+            console.log('Изображения успешно загружены!', result);
         } else {
             console.error('Ошибка при загрузке:', response.status);
         }
@@ -168,8 +169,8 @@ async function uploadToServer(fileList) {
 }
 
 // Упрощенная функция загрузки с поддержкой папок
-function handleFileUpload(event) {
-    const files = event.target.files;
+async function handleFileUpload(event) {
+    let files = event.target.files;
     if (!files || files.length === 0) return;
 
     // Показываем индикатор загрузки
@@ -177,6 +178,8 @@ function handleFileUpload(event) {
     domCache.uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Загрузка...';
     domCache.uploadBtn.disabled = true;
 
+    await uploadToServer(event.target.files);
+    console.log('Файлы:', files);
     const filePromises = [];
     const processedFiles = new Set();
 
@@ -193,8 +196,9 @@ function handleFileUpload(event) {
 
         // Определяем путь файла
         const filePath = file.webkitRelativePath || file.name;
-        const folderPath = filePath.includes('/') ? filePath.split('/').slice(0, -1).join('/') : 'корневая папка';
 
+        const folderPath = filePath.includes('/') ? filePath.split('/').slice(0, -1).join('/') : 'корневая папка';
+        console.log('Файл:', file, 'Путь:', folderPath);
         if (folderPath !== 'корневая папка') {
             folderStats.folders.add(folderPath);
         }
@@ -469,6 +473,7 @@ function analyzeImages() {
     const originalText = analyzeBtn.innerHTML;
     analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Анализ...';
     analyzeBtn.disabled = true;
+    console.log(uploadedImages);
 
     // Имитация анализа с задержкой
     setTimeout(() => {
@@ -604,71 +609,3 @@ function saveSettings() {
 
 }
 
-//// Показать уведомление
-//function showNotification(message, type = 'info') {
-//    // Создаем элемент уведомления
-//    const notification = document.createElement('div');
-//    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-//    notification.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
-//    notification.innerHTML = `
-//        ${message}
-//        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-//    `;
-//
-//    // Добавляем уведомление на страницу
-//    document.body.appendChild(notification);
-//
-//    // Автоматически удаляем уведомление через 3 секунды
-//    setTimeout(() => {
-//        if (notification.parentNode) {
-//            notification.parentNode.removeChild(notification);
-//        }
-//    }, 3000);
-//}
-
-//// Сохранение данных в localStorage
-//function saveToLocalStorage() {
-//    const data = {
-//        uploadedImages: uploadedImages,
-//        currentImageIndex: currentImageIndex,
-//        detectedObjects: detectedObjects,
-//        settings: settings
-//    };
-//
-//    localStorage.setItem('visionAnalyzerData', JSON.stringify(data));
-//}
-//
-//// Загрузка данных из localStorage
-//function loadSavedData() {
-//    const savedData = localStorage.getItem('visionAnalyzerData');
-//
-//    if (savedData) {
-//        const data = JSON.parse(savedData);
-//
-//        uploadedImages = data.uploadedImages || [];
-//        currentImageIndex = data.currentImageIndex || -1;
-//        detectedObjects = data.detectedObjects || {};
-//        settings = data.settings || settings;
-//
-//        // Восстанавливаем интерфейс
-//        updateImageList();
-//
-//        if (currentImageIndex >= 0 && currentImageIndex < uploadedImages.length) {
-//            selectImage(currentImageIndex);
-//        }
-//
-//        // Восстанавливаем настройки в форме
-//        document.getElementById('detectionLimit').value = settings.detectionLimit;
-//        document.getElementById('detectionLimitValue').textContent = settings.detectionLimit;
-//        document.getElementById('georeference').checked = settings.georeference;
-//        document.getElementById('pixelSize').value = settings.pixelSize;
-//        document.getElementById('objectTheme').value = settings.objectTheme;
-//
-//        showNotification('Данные восстановлены', 'info');
-//    }
-//}
-
-
-
-
-//nuctl deploy --project-name cvat --path serverless/pytorch/mis/yolorgb/nuclio --platform local --base-image nvidia/cuda:11.7.1-devel-ubuntu20.04 --image cvat/cvat.pth.mis.yolorgb.gpu --triggers '{"myHttpTrigger": {"maxWorkers": 1}}' --resource-limit nvidia.com/gpu=1
