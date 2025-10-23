@@ -306,40 +306,6 @@ function showNotification(message, type = 'info') {
     }
 }
 
-//// Улучшенная функция отображения списка с путями
-//function updateImageList() {
-//    if (!domCache.imageList) return;
-//
-//    domCache.imageList.innerHTML = '';
-//
-//    uploadedImages.forEach((image, index) => {
-//        const listItem = document.createElement('div');
-//        listItem.className = `list-group-item list-group-item-action d-flex justify-content-between align-items-center ${index === currentImageIndex ? 'active' : ''}`;
-//
-//        // Отображаем путь, если он отличается от имени файла
-//        const displayPath = image.path && image.path !== image.name ?
-//        `<small class="text-muted d-block mt-1">${truncatePath(image.path, 40)}</small>` : '';
-//
-//        listItem.innerHTML = `
-//            <div class="flex-grow-1">
-//                <div class="fw-bold">${image.name}</div>
-//                ${displayPath}
-//            </div>
-//            <div class="ms-2">
-//                <span class="badge bg-${image.analyzed ? 'success' : 'secondary'} me-1">
-//                    ${image.analyzed ? 'Анализ' : 'Не анализировано'}
-//                </span>
-//                <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); removeImage(${image.id})">
-//                    <i class="fas fa-times"></i>
-//                </button>
-//            </div>
-//        `;
-//
-//        listItem.addEventListener('click', () => selectImage(index));
-//        domCache.imageList.appendChild(listItem);
-//    });
-//}
-
 // Функция для обрезки длинных путей
 function truncatePath(path, maxLength) {
     if (!path || path.length <= maxLength) return path;
@@ -368,31 +334,46 @@ function updateImageList() {
                 <p class="text-muted">Изображения не загружены</p>
             </div>
         `;
-//        domCache.imageCount.textContent = '0 изображений';
         return;
     }
 
-    let html = '<div class="d-flex flex-wrap">';
+    // Создаем DocumentFragment для эффективного добавления элементов
+    const fragment = document.createDocumentFragment();
+    const container = document.createElement('div');
+    container.className = 'd-flex flex-wrap image-list-container';
+//    container.setAttribute('data-bs-spy', 'scroll');
+//    container.setAttribute('data-bs-smooth-scroll', 'true');
 
     uploadedImages.forEach((image, index) => {
         const badgeClass = image.analyzed ? 'bg-success' : 'bg-secondary';
         const badgeIcon = image.analyzed ? '✓' : '?';
 
-        html += `
-            <div class="image-thumbnail fade-in ${index === currentImageIndex ? 'active' : ''}" data-index="${index}">
+        // Создаем контейнер для каждого изображения с названием
+        const imageItem = document.createElement('div');
+        imageItem.className = `image-item ${index === currentImageIndex ? 'active' : ''}`;
+        imageItem.setAttribute('data-index', index);
+
+        // Формируем содержимое с названием изображения
+        imageItem.innerHTML = `
+            <div class="image-title" title="${image.name}">${image.name}</div>
+            <div class="image-thumbnail fade-in">
                 <img src="${image.url}" alt="${image.name}" loading="lazy">
                 <div class="thumbnail-badge ${badgeClass}">${badgeIcon}</div>
             </div>
         `;
+
+        container.appendChild(imageItem);
     });
 
-    html += '</div>';
-    domCache.imageList.innerHTML = html;
-//    domCache.imageCount.textContent = `${uploadedImages.length} изображений`;
+    fragment.appendChild(container);
+
+    // Очищаем и добавляем новые элементы
+    domCache.imageList.innerHTML = '';
+    domCache.imageList.appendChild(fragment);
 
     // Добавляем обработчики клика на миниатюры с делегированием событий
     domCache.imageList.addEventListener('click', function(e) {
-        const thumbnail = e.target.closest('.image-thumbnail');
+        const thumbnail = e.target.closest('.image-item');
         if (thumbnail) {
             const index = parseInt(thumbnail.getAttribute('data-index'));
             selectImage(index);

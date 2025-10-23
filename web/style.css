@@ -62,6 +62,10 @@ body {
     padding: 1rem 1.25rem;
 }
 
+.custom-card-body {
+    padding: 1px !important;
+}
+
 /* Кастомные кнопки */
 .btn-accent {
     background-color: var(--accent);
@@ -138,7 +142,8 @@ body {
     justify-content: center;
     flex-wrap: wrap;
     gap: 15px;
-    min-height: 120px;
+    height: 26vh;
+    overflow-y: auto;
 }
 
 .image-thumbnail {
@@ -180,6 +185,94 @@ body {
     justify-content: center;
     font-size: 10px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Стили для контейнера с изображениями */
+.image-list-container {
+    gap: 2px; /* Увеличиваем расстояние между элементами */
+    padding: 2px;
+}
+
+/* Стили для каждого элемента изображения */
+.image-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.image-item:hover {
+    background-color: #f8f9fa;
+    transform: translateY(-2px);
+}
+
+.image-item.active {
+    border-color: #007bff;
+    background-color: #e7f3ff;
+}
+
+/* Стили для названия изображения */
+.image-title {
+    font-size: 10px;
+    font-weight: 500;
+    margin-bottom: 1px;
+    text-align: center;
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #333;
+}
+
+/* Стили для миниатюры */
+.image-thumbnail {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.image-thumbnail:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: scale(1.05);
+}
+
+.image-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Стили для бейджа */
+.thumbnail-badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: white;
+    font-weight: bold;
+}
+
+/* Анимация появления */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* Распознанные объекты */
@@ -300,14 +393,31 @@ body {
     background-color: var(--accent) !important;
 }
 
-.row{
-    margin: 0.5rem
-}
-
 .empty-state{
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.container-fluid {
+    margin-top: 0.5rem !important;
+}
+
+#previewCard {
+    padding-right: 0.3rem;
+}
+
+#detectedObjectsCard {
+    padding-left: 0.3rem;
+}
+
+.container-fluid .row {
+    margin: 0.3rem !important;
+}
+
+/* Специфичные стили для ряда с превью и объектами */
+#previewAndDetectedRow {
+    margin-bottom: 0.3rem;
 }
 
 /* Адаптивность */
