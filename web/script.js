@@ -395,7 +395,7 @@ function selectImage(index) {
         previewImg.src = image.url;
     } else {
         // Создаем новое изображение
-        domCache.imagePreview.innerHTML = `<img src="${image.url}" alt="${image.name}" class="fade-in">`;
+        domCache.imagePreview.innerHTML = `<img src="${image.url}" alt="${image.name}" class="fade-in" id="zoomImage">`;
     }
 
     // Обновляем название текущего изображения

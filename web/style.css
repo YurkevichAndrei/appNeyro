@@ -111,6 +111,13 @@ body {
     border-radius: 0 0 12px 12px;
     overflow: hidden;
     position: relative;
+    cursor: grab;
+    user-select: none;
+    transform-origin: 0 0;
+}
+
+.image-preview:active {
+    cursor: grabbing;
 }
 
 .image-preview img {
