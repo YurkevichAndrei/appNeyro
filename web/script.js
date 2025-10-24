@@ -12,6 +12,8 @@ let settings = {
 // Кэш для DOM элементов
 let domCache = {};
 
+let images = []
+
 // Объекты для имитации распознавания по тематикам
 const objectThemes = {
     animals: [
@@ -147,28 +149,159 @@ async function uploadToServer(fileList) {
 
     // Добавляем все файлы в FormData
     for (let i = 0; i < fileList.length; i++) {
-        formData.append('images', fileList[i]); // 'images' - название поля на сервере
+        formData.append('files', fileList[i]); // 'images' - название поля на сервере
     }
+    res = {'result': null, 'error': null};
     try {
-        const response = await fetch('http://127.0.0.1:8000/upload-images', {
+        const response = await fetch('/server/upload-images', {
             method: 'POST',
-            body: formData, // Content-Type устанавливается автоматически как multipart/form-data
-            mode: 'cors', // можно не указывать, так как это значение по умолчанию
-            credentials: 'same-origin' // или 'include', если нужно отправлять куки на другой домен
+            body: formData // Content-Type устанавливается автоматически как multipart/form-data
+//            mode: 'cors', // можно не указывать, так как это значение по умолчанию
+//            credentials: 'same-origin' // или 'include', если нужно отправлять куки на другой домен
         });
 
         if (response.ok) {
             const result = await response.json();
             console.log('Изображения успешно загружены!', result);
+            res['result'] = result;
         } else {
             console.error('Ошибка при загрузке:', response.status);
+            res['error'] = 'error upload';
         }
     } catch (error) {
         console.error('Сетевая ошибка:', error);
+        res['error'] = 'error network';
     }
+    return res;
 }
 
-// Упрощенная функция загрузки с поддержкой папок
+//// Упрощенная функция загрузки с поддержкой папок
+//async function handleFileUpload(event) {
+//    let files = event.target.files;
+//    if (!files || files.length === 0) return;
+//
+//    // Показываем индикатор загрузки
+//    const originalText = domCache.uploadBtn.innerHTML;
+//    domCache.uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Загрузка...';
+//    domCache.uploadBtn.disabled = true;
+//
+//    let res = await uploadToServer(files);
+//
+//    if (res['error'] === 'error upload') {
+//        showNotification(
+//            'Не удалось загрузить изображения на сервер.',
+//            'error'
+//        );
+//        return;
+//    } else if (res['error'] === 'error network') {
+//        showNotification(
+//            'Сетевая ошибка при загрузке изображений. Попробуйте позже.',
+//            'warning'
+//        );
+//        return;
+//    } else {
+//        if (res['result'] !== null) {
+//            images = res['result'];
+//        }
+//    }
+//
+//    const filePromises = [];
+//    const processedFiles = new Set();
+//
+//    // Собираем статистику по папкам
+//    const folderStats = {
+//        total: 0,
+//        images: 0,
+//        folders: new Set()
+//    };
+//
+//    for (let i = 0; i < files.length; i++) {
+//        const file = files[i];
+//        folderStats.total++;
+//
+//        // Определяем путь файла
+//        const filePath = file.webkitRelativePath || file.name;
+//
+//        const folderPath = filePath.includes('/') ? filePath.split('/').slice(0, -1).join('/') : 'корневая папка';
+//        if (folderPath !== 'корневая папка') {
+//            folderStats.folders.add(folderPath);
+//        }
+//
+//        // Пропускаем не-изображения и дубликаты
+//        if (!file.type.match('image.*') || processedFiles.has(filePath)) {
+//            continue;
+//        }
+//
+//        processedFiles.add(filePath);
+//        folderStats.images++;
+//
+//        filePromises.push(new Promise((resolve) => {
+//            const reader = new FileReader();
+//            reader.onload = function(e) {
+//                const imageData = {
+//                    id: Date.now() + i + Math.random(),
+//                    name: file.name,
+//                    url: e.target.result,
+//                    analyzed: false,
+//                    path: filePath
+//                };
+//                resolve(imageData);
+//            };
+//            reader.onerror = function() {
+//                console.error('Ошибка чтения файла:', file.name);
+//                resolve(null);
+//            };
+//            reader.readAsDataURL(file);
+//        }));
+//    }
+//
+//    // Обрабатываем все промисы
+//    Promise.all(filePromises).then(images => {
+//        const successfulImages = images.filter(img => img !== null);
+//
+//        if (successfulImages.length > 0) {
+//            uploadedImages.push(...successfulImages);
+//            updateImageList();
+//
+//            if (currentImageIndex === -1 && uploadedImages.length > 0) {
+//                selectImage(0);
+//            }
+//
+//            // Детальное уведомление о результате
+//            const folderCount = folderStats.folders.size;
+//            const folderText = folderCount > 0 ? ` из ${folderCount} папок` : '';
+//            showNotification(
+//                `Успешно загружено ${successfulImages.length} изображений${folderText} (найдено ${folderStats.images} изображений из ${folderStats.total} файлов)`,
+//                'success'
+//            );
+//        } else {
+//            showNotification(
+//                `Не удалось загрузить изображения. Найдено ${folderStats.images} изображений из ${folderStats.total} файлов`,
+//                'warning'
+//            );
+//        }
+//
+//        // Восстанавливаем кнопку
+//        domCache.uploadBtn.innerHTML = originalText;
+//        domCache.uploadBtn.disabled = false;
+//        domCache.analyzeBtn.disabled = true;
+//        domCache.exportBtn.disabled = true;
+//        domCache.paramsBtn.disabled = false;
+//
+////        // Сохраняем данные
+////        saveToLocalStorage();
+//    }).catch(error => {
+//        console.error('Ошибка при загрузке изображений:', error);
+//        showNotification('Произошла ошибка при загрузке изображений', 'error');
+//
+//        // Восстанавливаем кнопку в случае ошибки
+//        domCache.uploadBtn.innerHTML = originalText;
+//        domCache.uploadBtn.disabled = false;
+//    });
+//    // Очистка input для возможности повторной загрузки тех же файлов
+//    event.target.value = '';
+//}
+
 async function handleFileUpload(event) {
     let files = event.target.files;
     if (!files || files.length === 0) return;
@@ -178,63 +311,143 @@ async function handleFileUpload(event) {
     domCache.uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Загрузка...';
     domCache.uploadBtn.disabled = true;
 
-    await uploadToServer(event.target.files);
-    console.log('Файлы:', files);
-    const filePromises = [];
+    const SIZE_THRESHOLD = 500 * 1024 * 1024; // 500 МБ
     const processedFiles = new Set();
-
-    // Собираем статистику по папкам
     const folderStats = {
         total: 0,
         images: 0,
-        folders: new Set()
+        skipped: 0,
+        folders: new Set(),
+        largeFiles: 0,
+        smallFiles: 0
     };
 
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        folderStats.total++;
+    const successfulImages = [];
 
-        // Определяем путь файла
-        const filePath = file.webkitRelativePath || file.name;
+    try {
+        // Сначала собираем информацию о файлах
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            folderStats.total++;
 
-        const folderPath = filePath.includes('/') ? filePath.split('/').slice(0, -1).join('/') : 'корневая папка';
-        console.log('Файл:', file, 'Путь:', folderPath);
-        if (folderPath !== 'корневая папка') {
-            folderStats.folders.add(folderPath);
+            const filePath = file.webkitRelativePath || file.name;
+            const folderPath = filePath.includes('/') ?
+            filePath.split('/').slice(0, -1).join('/') : 'корневая папка';
+
+            if (folderPath !== 'корневая папка') {
+                folderStats.folders.add(folderPath);
+            }
+
+            // Пропускаем не-изображения и дубликаты
+            if (!file.type.match('image.*') || processedFiles.has(filePath)) {
+                folderStats.skipped++;
+                continue;
+            }
+
+            processedFiles.add(filePath);
+            folderStats.images++;
+
+            // Определяем стратегию загрузки в зависимости от размера
+            if (file.size > SIZE_THRESHOLD) {
+                folderStats.largeFiles++;
+                // Для больших файлов используем createObjectURL
+                try {
+                    const url = URL.createObjectURL(file);
+                    const imageData = {
+                        id: Date.now() + i + Math.random(),
+                        name: file.name,
+                        url: url,
+                        analyzed: false,
+                        path: filePath,
+                        size: file.size,
+                        type: file.type,
+                        isBlobUrl: true, // Помечаем как blob URL для последующей очистки
+                        loadMethod: 'blob'
+                    };
+                    successfulImages.push(imageData);
+                } catch (error) {
+                    console.error('Ошибка создания blob URL для большого файла:', file.name, error);
+                    folderStats.skipped++;
+                }
+            } else {
+                folderStats.smallFiles++;
+                // Для маленьких файлов используем FileReader (сохраняем оригинальный подход)
+                try {
+                    const imageData = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const imageData = {
+                                id: Date.now() + i + Math.random(),
+                                name: file.name,
+                                url: e.target.result,
+                                analyzed: false,
+                                path: filePath,
+                                size: file.size,
+                                type: file.type,
+                                isBlobUrl: false,
+                                loadMethod: 'dataurl'
+                            };
+                            resolve(imageData);
+                        };
+                        reader.onerror = function() {
+                            console.error('Ошибка чтения файла через FileReader:', file.name);
+                            resolve(null);
+                        };
+                        reader.readAsDataURL(file);
+                    });
+
+                    if (imageData) {
+                        successfulImages.push(imageData);
+                    } else {
+                        folderStats.skipped++;
+                    }
+                } catch (error) {
+                    console.error('Ошибка при чтении маленького файла:', file.name, error);
+                    folderStats.skipped++;
+                }
+            }
         }
 
-        // Пропускаем не-изображения и дубликаты
-        if (!file.type.match('image.*') || processedFiles.has(filePath)) {
-            continue;
+        // Загружаем файлы на сервер (если требуется)
+        let res;
+        try {
+            res = await uploadToServer(files);
+
+            if (res['error'] === 'error upload') {
+                showNotification('Не удалось загрузить изображения на сервер.', 'error');
+                // Отзываем blob URLs в случае ошибки
+                successfulImages.forEach(img => {
+                    if (img.isBlobUrl) {
+                        URL.revokeObjectURL(img.url);
+                    }
+                });
+                return;
+            } else if (res['error'] === 'error network') {
+                showNotification('Сетевая ошибка при загрузке изображений. Попробуйте позже.', 'warning');
+                // Отзываем blob URLs в случае ошибки
+                successfulImages.forEach(img => {
+                    if (img.isBlobUrl) {
+                        URL.revokeObjectURL(img.url);
+                    }
+                });
+                return;
+            } else {
+                if (res['result'] !== null) {
+                    images = res['result'];
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка при загрузке на сервер:', error);
+            // Отзываем blob URLs в случае ошибки
+            successfulImages.forEach(img => {
+                if (img.isBlobUrl) {
+                    URL.revokeObjectURL(img.url);
+                }
+            });
+            throw error;
         }
 
-        processedFiles.add(filePath);
-        folderStats.images++;
-
-        filePromises.push(new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const imageData = {
-                    id: Date.now() + i + Math.random(),
-                    name: file.name,
-                    url: e.target.result,
-                    analyzed: false,
-                    path: filePath
-                };
-                resolve(imageData);
-            };
-            reader.onerror = function() {
-                console.error('Ошибка чтения файла:', file.name);
-                resolve(null);
-            };
-            reader.readAsDataURL(file);
-        }));
-    }
-
-    // Обрабатываем все промисы
-    Promise.all(filePromises).then(images => {
-        const successfulImages = images.filter(img => img !== null);
-
+        // Добавляем успешные изображения в основной массив
         if (successfulImages.length > 0) {
             uploadedImages.push(...successfulImages);
             updateImageList();
@@ -246,36 +459,53 @@ async function handleFileUpload(event) {
             // Детальное уведомление о результате
             const folderCount = folderStats.folders.size;
             const folderText = folderCount > 0 ? ` из ${folderCount} папок` : '';
+            const sizeInfo = folderStats.largeFiles > 0 ?
+            ` (${folderStats.smallFiles} через DataURL, ${folderStats.largeFiles} через BlobURL)` : '';
+            const skippedText = folderStats.skipped > 0 ?
+            `, пропущено: ${folderStats.skipped}` : '';
+
             showNotification(
-                `Успешно загружено ${successfulImages.length} изображений${folderText} (найдено ${folderStats.images} изображений из ${folderStats.total} файлов)`,
+                `Успешно загружено ${successfulImages.length} изображений${folderText}${sizeInfo}${skippedText}`,
                 'success'
             );
         } else {
             showNotification(
-                `Не удалось загрузить изображения. Найдено ${folderStats.images} изображений из ${folderStats.total} файлов`,
+                `Не удалось загрузить изображения. Проверьте размер и формат файлов.`,
                 'warning'
             );
         }
 
-        // Восстанавливаем кнопку
+    } catch (error) {
+        console.error('Общая ошибка при загрузке:', error);
+        showNotification('Произошла ошибка при загрузке изображений', 'error');
+    } finally {
+        // Всегда восстанавливаем кнопку
         domCache.uploadBtn.innerHTML = originalText;
         domCache.uploadBtn.disabled = false;
         domCache.analyzeBtn.disabled = true;
         domCache.exportBtn.disabled = true;
         domCache.paramsBtn.disabled = false;
+        event.target.value = '';
+    }
+}
 
-//        // Сохраняем данные
-//        saveToLocalStorage();
-    }).catch(error => {
-        console.error('Ошибка при загрузке изображений:', error);
-        showNotification('Произошла ошибка при загрузке изображений', 'error');
-
-        // Восстанавливаем кнопку в случае ошибки
-        domCache.uploadBtn.innerHTML = originalText;
-        domCache.uploadBtn.disabled = false;
+// Дополнительная функция для очистки blob URLs при удалении изображений
+function cleanupBlobUrls() {
+    uploadedImages.forEach(img => {
+        if (img.isBlobUrl && img.url) {
+            URL.revokeObjectURL(img.url);
+        }
     });
-    // Очистка input для возможности повторной загрузки тех же файлов
-    event.target.value = '';
+}
+
+// Функция для удаления отдельного изображения с очисткой blob URL
+function removeImage(index) {
+    const image = uploadedImages[index];
+    if (image && image.isBlobUrl && image.url) {
+        URL.revokeObjectURL(image.url);
+    }
+    uploadedImages.splice(index, 1);
+    updateImageList();
 }
 
 // Функция для показа уведомлений
@@ -345,8 +575,6 @@ function updateImageList() {
     const fragment = document.createDocumentFragment();
     const container = document.createElement('div');
     container.className = 'd-flex flex-wrap image-list-container';
-//    container.setAttribute('data-bs-spy', 'scroll');
-//    container.setAttribute('data-bs-smooth-scroll', 'true');
 
     uploadedImages.forEach((image, index) => {
         const badgeClass = image.analyzed ? 'bg-success' : 'bg-secondary';

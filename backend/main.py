@@ -24,8 +24,9 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:4444",
         "http://127.0.0.1:4444",
-        "http://localhost:8080",
-        "http://127.0.0.1:8080",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000"
+        # "*"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -194,29 +195,31 @@ async def upload_images(files: List[UploadFile] = File(...)):
             file_extension = os.path.splitext(file.filename)[1]
             unique_filename = f"{uuid.uuid4()}{file_extension}"
             upload_path = os.path.join(UPLOAD_DIR, unique_filename)
-            annotated_path = os.path.join(ANNOTATED_DIR, unique_filename)
+            # annotated_path = os.path.join(ANNOTATED_DIR, unique_filename)
+
+            print(file.filename)
 
             # Сохраняем загруженный файл
             with open(upload_path, "wb") as buffer:
                 content = await file.read()
                 buffer.write(content)
 
-            # Последовательная детекция на GPU
-            detections = await loop.run_in_executor(
-                None, detect_objects, upload_path
-            )
-
-            # Рисуем bounding boxes и сохраняем размеченное изображение
-            await loop.run_in_executor(
-                None, draw_bounding_boxes, upload_path, detections, annotated_path
-            )
+            # # Последовательная детекция на GPU
+            # detections = await loop.run_in_executor(
+            #     None, detect_objects, upload_path
+            # )
+            #
+            # # Рисуем bounding boxes и сохраняем размеченное изображение
+            # await loop.run_in_executor(
+            #     None, draw_bounding_boxes, upload_path, detections, annotated_path
+            # )
 
             # Форматируем результат
             formatted_result = {
                 "original_filename": file.filename,
                 "uploaded_path": upload_path,
-                "annotated_path": annotated_path,
-                "detections": detections
+                # "annotated_path": annotated_path,
+                # "detections": detections
             }
 
             results.append(formatted_result)
