@@ -1,12 +1,15 @@
 import os
+import shutil
+import tempfile
 import uuid
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Query
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 import asyncio
 import concurrent.futures
+
 from sahi.predict import get_sliced_prediction
 from sahi import AutoDetectionModel
 from sahi.utils.cv import read_image
@@ -14,6 +17,7 @@ from sahi.prediction import ObjectPrediction
 import torch
 from PIL import Image, ImageDraw, ImageFont
 import json
+import rasterio
 
 # Инициализация FastAPI приложения
 app = FastAPI(title="Object Detection API")
@@ -147,6 +151,108 @@ def process_detection_formatting(image_path: str, detections: List[dict]) -> dic
         "image_path": image_path,
         "detections": detections
     }
+
+def create_world_file(png_path: str, transform: tuple, crs: Optional[str] = None):
+    """Создает мировой файл (.pgw) для PNG"""
+    world_file_path = png_path.replace('.png', '.pgw')
+
+    with open(world_file_path, 'w') as f:
+        f.write(f"{transform[0]}\n")  # x-scale
+        f.write(f"{transform[1]}\n")  # y-skew
+        f.write(f"{transform[2]}\n")  # x-skew
+        f.write(f"{transform[3]}\n")  # y-scale
+        f.write(f"{transform[4]}\n")  # x-coordinate of upper-left pixel
+        f.write(f"{transform[5]}\n")  # y-coordinate of upper-left pixel
+
+    # Также создаем файл с информацией о проекции если есть CRS
+    if crs:
+        prj_file_path = png_path.replace('.png', '.prj')
+        with open(prj_file_path, 'w') as f:
+            f.write(crs)
+
+@app.post("/convert/tiff-to-png")
+async def convert_tiff_to_png(
+        file: UploadFile = File(...),
+        save_georeference: bool = Query(False, description="Сохранять ли геопривязку")
+):
+    """
+    Конвертирует TIFF файл в PNG с возможностью сохранения геопривязки
+
+    - **file**: TIFF файл для конвертации
+    - **save_georeference**: Сохранять ли геопривязку (по умолчанию False)
+    """
+    # Проверяем что файл TIFF
+    if not file.filename.lower().endswith(('.tif', '.tiff')):
+        raise HTTPException(
+            status_code=400,
+            detail="Формат файла не поддерживается. Загрузите TIFF файл."
+        )
+
+    # Создаем временную директорию
+    with tempfile.TemporaryDirectory() as temp_dir:
+        try:
+            # Сохраняем загруженный файл
+            input_tiff_path = os.path.join(temp_dir, file.filename)
+            with open(input_tiff_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+
+            # Открываем TIFF файл
+            with rasterio.open(input_tiff_path) as src:
+                # Получаем метаданные
+                profile = src.profile
+                transform = src.transform
+                crs = src.crs.to_wkt() if src.crs else None
+
+                # Обновляем профиль для PNG
+                profile.update(
+                    driver='PNG',
+                    dtype=rasterio.uint8,
+                    count=min(src.count, 4),  # PNG поддерживает до 4 каналов
+                    compress='deflate'
+                )
+
+                # Создаем имя для выходного файла
+                output_filename = file.filename.replace('.tif', '.png').replace('.tiff', '.png')
+                output_png_path = os.path.join(temp_dir, output_filename)
+
+                # Конвертируем и сохраняем PNG
+                with rasterio.open(output_png_path, 'w', **profile) as dst:
+                    # Читаем и записываем каждый канал
+                    for i in range(1, profile['count'] + 1):
+                        # Масштабируем данные до uint8 если нужно
+                        data = src.read(i)
+                        if src.dtypes[i-1] != 'uint8':
+                            # Нормализуем данные до 0-255
+                            data = (data - data.min()) / (data.max() - data.min()) * 255
+                            data = data.astype(rasterio.uint8)
+                        dst.write(data, i)
+
+                # Создаем мировой файл с геопривязкой только если требуется
+                if save_georeference:
+                    create_world_file(output_png_path, transform, crs)
+                    print(f"Геопривязка сохранена: {output_png_path}")
+                else:
+                    print("Геопривязка не сохранена по запросу пользователя")
+
+                # Проверяем что файл создан
+                if not os.path.exists(output_png_path):
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Ошибка при создании PNG файла"
+                    )
+
+                # Возвращаем файл
+                return FileResponse(
+                    path=output_png_path,
+                    filename=output_filename,
+                    media_type='image/png'
+                )
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Ошибка при конвертации: {str(e)}"
+            )
 
 # Оригинальный эндпоинт для детекции по путям
 @app.post("/detect", response_model=DetectionResponse)
