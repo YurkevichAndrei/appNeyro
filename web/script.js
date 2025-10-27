@@ -156,8 +156,6 @@ async function uploadToServer(fileList) {
         const response = await fetch('/server/upload-images', {
             method: 'POST',
             body: formData // Content-Type устанавливается автоматически как multipart/form-data
-//            mode: 'cors', // можно не указывать, так как это значение по умолчанию
-//            credentials: 'same-origin' // или 'include', если нужно отправлять куки на другой домен
         });
 
         if (response.ok) {
@@ -175,132 +173,39 @@ async function uploadToServer(fileList) {
     return res;
 }
 
-//// Упрощенная функция загрузки с поддержкой папок
-//async function handleFileUpload(event) {
-//    let files = event.target.files;
-//    if (!files || files.length === 0) return;
-//
-//    // Показываем индикатор загрузки
-//    const originalText = domCache.uploadBtn.innerHTML;
-//    domCache.uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Загрузка...';
-//    domCache.uploadBtn.disabled = true;
-//
-//    let res = await uploadToServer(files);
-//
-//    if (res['error'] === 'error upload') {
-//        showNotification(
-//            'Не удалось загрузить изображения на сервер.',
-//            'error'
-//        );
-//        return;
-//    } else if (res['error'] === 'error network') {
-//        showNotification(
-//            'Сетевая ошибка при загрузке изображений. Попробуйте позже.',
-//            'warning'
-//        );
-//        return;
-//    } else {
-//        if (res['result'] !== null) {
-//            images = res['result'];
-//        }
-//    }
-//
-//    const filePromises = [];
-//    const processedFiles = new Set();
-//
-//    // Собираем статистику по папкам
-//    const folderStats = {
-//        total: 0,
-//        images: 0,
-//        folders: new Set()
-//    };
-//
-//    for (let i = 0; i < files.length; i++) {
-//        const file = files[i];
-//        folderStats.total++;
-//
-//        // Определяем путь файла
-//        const filePath = file.webkitRelativePath || file.name;
-//
-//        const folderPath = filePath.includes('/') ? filePath.split('/').slice(0, -1).join('/') : 'корневая папка';
-//        if (folderPath !== 'корневая папка') {
-//            folderStats.folders.add(folderPath);
-//        }
-//
-//        // Пропускаем не-изображения и дубликаты
-//        if (!file.type.match('image.*') || processedFiles.has(filePath)) {
-//            continue;
-//        }
-//
-//        processedFiles.add(filePath);
-//        folderStats.images++;
-//
-//        filePromises.push(new Promise((resolve) => {
-//            const reader = new FileReader();
-//            reader.onload = function(e) {
-//                const imageData = {
-//                    id: Date.now() + i + Math.random(),
-//                    name: file.name,
-//                    url: e.target.result,
-//                    analyzed: false,
-//                    path: filePath
-//                };
-//                resolve(imageData);
-//            };
-//            reader.onerror = function() {
-//                console.error('Ошибка чтения файла:', file.name);
-//                resolve(null);
-//            };
-//            reader.readAsDataURL(file);
-//        }));
-//    }
-//
-//    // Обрабатываем все промисы
-//    Promise.all(filePromises).then(images => {
-//        const successfulImages = images.filter(img => img !== null);
-//
-//        if (successfulImages.length > 0) {
-//            uploadedImages.push(...successfulImages);
-//            updateImageList();
-//
-//            if (currentImageIndex === -1 && uploadedImages.length > 0) {
-//                selectImage(0);
-//            }
-//
-//            // Детальное уведомление о результате
-//            const folderCount = folderStats.folders.size;
-//            const folderText = folderCount > 0 ? ` из ${folderCount} папок` : '';
-//            showNotification(
-//                `Успешно загружено ${successfulImages.length} изображений${folderText} (найдено ${folderStats.images} изображений из ${folderStats.total} файлов)`,
-//                'success'
-//            );
-//        } else {
-//            showNotification(
-//                `Не удалось загрузить изображения. Найдено ${folderStats.images} изображений из ${folderStats.total} файлов`,
-//                'warning'
-//            );
-//        }
-//
-//        // Восстанавливаем кнопку
-//        domCache.uploadBtn.innerHTML = originalText;
-//        domCache.uploadBtn.disabled = false;
-//        domCache.analyzeBtn.disabled = true;
-//        domCache.exportBtn.disabled = true;
-//        domCache.paramsBtn.disabled = false;
-//
-////        // Сохраняем данные
-////        saveToLocalStorage();
-//    }).catch(error => {
-//        console.error('Ошибка при загрузке изображений:', error);
-//        showNotification('Произошла ошибка при загрузке изображений', 'error');
-//
-//        // Восстанавливаем кнопку в случае ошибки
-//        domCache.uploadBtn.innerHTML = originalText;
-//        domCache.uploadBtn.disabled = false;
-//    });
-//    // Очистка input для возможности повторной загрузки тех же файлов
-//    event.target.value = '';
-//}
+// `fileList` - это массив файлов, полученных из input
+async function convertTiffToPng(file) {
+    const formData = new FormData();
+    formData.append('files', file);
+
+    console.log("formData", formData);
+
+    res = {'result': null, 'error': null};
+    try {
+        const response = await fetch('/server/convert/tiff-to-png?save_georeference=false', {
+            method: 'POST',
+            body: formData // Content-Type устанавливается автоматически как multipart/form-data
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Изображение успешно конвертировано!', result);
+
+//            res['result'] = result;
+        } else {
+            console.error('Ошибка при загрузке:', response.status);
+            res['error'] = 'error upload';
+        }
+    } catch (error) {
+        console.error('Сетевая ошибка:', error);
+        res['error'] = 'error network';
+    }
+    return res;
+}
+
+function removeExtension(filename) {
+    return filename.replace(/\.[^/.]+$/, "");
+}
 
 async function handleFileUpload(event) {
     let files = event.target.files;
@@ -323,11 +228,12 @@ async function handleFileUpload(event) {
     };
 
     const successfulImages = [];
+    const imageForServer = [];
 
     try {
         // Сначала собираем информацию о файлах
         for (let i = 0; i < files.length; i++) {
-            const file = files[i];
+            let file = files[i];
             folderStats.total++;
 
             const filePath = file.webkitRelativePath || file.name;
@@ -342,6 +248,41 @@ async function handleFileUpload(event) {
             if (!file.type.match('image.*') || processedFiles.has(filePath)) {
                 folderStats.skipped++;
                 continue;
+            }
+
+            // Проверяем, не загружали ли мы файл с таким же именем ранее
+            if (uploadedImages.some(img => removeExtension(img.path) === removeExtension(filePath))) {
+                folderStats.skipped++;
+                continue;
+            }
+
+            if (file.type === 'image/tiff') {
+                convertResult = await convertTiffToPng(file);
+                if (convertResult['error'] === 'error upload') {
+                    showNotification(
+                        'Не удалось конвертировать TIFF в PNG. Проверьте формат файла.',
+                        'error'
+                    );
+                    folderStats.skipped++;
+                    continue;
+                } else if (convertResult['error'] === 'error network') {
+                    showNotification(
+                        'Сетевая ошибка при конвертации TIFF в PNG. Попробуйте позже.',
+                        'warning'
+                    );
+                    folderStats.skipped++;
+                    continue;
+                } else {
+                    if (convertResult['result']['results'] !== (null || undefined)) {
+                        console.log('Изображение успешно конвертировано!', convertResult['result']['results']);
+                        file = convertResult['result']['results'][0];
+                        images.push({"original_filename": file.name, "uploaded_path": file.name})
+                    }
+                }
+
+            }
+            else {
+                imageForServer.push(file)
             }
 
             processedFiles.add(filePath);
@@ -411,7 +352,8 @@ async function handleFileUpload(event) {
         // Загружаем файлы на сервер (если требуется)
         let res;
         try {
-            res = await uploadToServer(files);
+            res = await uploadToServer(imageForServer);
+            console.log("res", res);
 
             if (res['error'] === 'error upload') {
                 showNotification('Не удалось загрузить изображения на сервер.', 'error');
@@ -421,6 +363,7 @@ async function handleFileUpload(event) {
                         URL.revokeObjectURL(img.url);
                     }
                 });
+                images = [];
                 return;
             } else if (res['error'] === 'error network') {
                 showNotification('Сетевая ошибка при загрузке изображений. Попробуйте позже.', 'warning');
@@ -430,10 +373,12 @@ async function handleFileUpload(event) {
                         URL.revokeObjectURL(img.url);
                     }
                 });
+                images = [];
                 return;
             } else {
-                if (res['result'] !== null) {
-                    images = res['result'];
+                if (res['result']['results'] !== (null || undefined)) {
+                    console.log('Изображения успешно загружены на сервер!', res['result']['results']);
+                    images.push(...res['result']['results']);
                 }
             }
         } catch (error) {
@@ -444,6 +389,7 @@ async function handleFileUpload(event) {
                     URL.revokeObjectURL(img.url);
                 }
             });
+            images = [];
             throw error;
         }
 
@@ -585,6 +531,7 @@ function updateImageList() {
         imageItem.className = `image-item ${index === currentImageIndex ? 'active' : ''}`;
         imageItem.setAttribute('data-index', index);
 
+        console.log(image);
         // Формируем содержимое с названием изображения
         imageItem.innerHTML = `
             <div class="image-title" title="${image.name}">${image.name}</div>
@@ -625,6 +572,7 @@ function selectImage(index) {
     if (previewImg) {
         // Если уже есть изображение, просто меняем src
         previewImg.src = image.url;
+        previewImg.alt = image.name;
     } else {
         // Создаем новое изображение
         domCache.imagePreview.innerHTML = `<img src="${image.url}" alt="${image.name}" class="fade-in" id="zoomImage">`;

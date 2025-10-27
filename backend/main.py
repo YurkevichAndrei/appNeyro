@@ -2,6 +2,7 @@ import os
 import shutil
 import tempfile
 import uuid
+
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Query
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,7 +10,9 @@ from pydantic import BaseModel
 from typing import List, Optional
 import asyncio
 import concurrent.futures
+from osgeo import gdal
 
+from rasterio import RasterioIOError
 from sahi.predict import get_sliced_prediction
 from sahi import AutoDetectionModel
 from sahi.utils.cv import read_image
@@ -36,6 +39,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+gdal.UseExceptions()
 
 # Глобальные переменные для модели
 MODEL_PATH = "models/yolo_rgb_weights_obb.pt"
@@ -152,27 +157,23 @@ def process_detection_formatting(image_path: str, detections: List[dict]) -> dic
         "detections": detections
     }
 
-def create_world_file(png_path: str, transform: tuple, crs: Optional[str] = None):
+def create_world_file(png_path: str, geotransform: tuple):
     """Создает мировой файл (.pgw) для PNG"""
-    world_file_path = png_path.replace('.png', '.pgw')
-
-    with open(world_file_path, 'w') as f:
-        f.write(f"{transform[0]}\n")  # x-scale
-        f.write(f"{transform[1]}\n")  # y-skew
-        f.write(f"{transform[2]}\n")  # x-skew
-        f.write(f"{transform[3]}\n")  # y-scale
-        f.write(f"{transform[4]}\n")  # x-coordinate of upper-left pixel
-        f.write(f"{transform[5]}\n")  # y-coordinate of upper-left pixel
-
-    # Также создаем файл с информацией о проекции если есть CRS
-    if crs:
-        prj_file_path = png_path.replace('.png', '.prj')
-        with open(prj_file_path, 'w') as f:
-            f.write(crs)
+    # Проверяем наличие мирового файла
+    world_file = png_path.replace('.png', '.pgw')
+    if geotransform and not os.path.exists(world_file):
+        # Создаем мировой файл вручную если он не создался автоматически
+        with open(world_file, 'w') as f:
+            f.write(f"{geotransform[1]}\n")   # Pixel width (x-scale)
+            f.write(f"{geotransform[4]}\n")   # Rotation parameter (usually 0)
+            f.write(f"{geotransform[2]}\n")   # Rotation parameter (usually 0)
+            f.write(f"{geotransform[5]}\n")   # Pixel height (y-scale, negative)
+            f.write(f"{geotransform[0] + geotransform[1] * 0.5}\n")  # X-coordinate of center
+            f.write(f"{geotransform[3] + geotransform[5] * 0.5}\n")  # Y-coordinate of center
 
 @app.post("/convert/tiff-to-png")
 async def convert_tiff_to_png(
-        file: UploadFile = File(...),
+        files: List[UploadFile] = File(...),
         save_georeference: bool = Query(False, description="Сохранять ли геопривязку")
 ):
     """
@@ -181,6 +182,7 @@ async def convert_tiff_to_png(
     - **file**: TIFF файл для конвертации
     - **save_georeference**: Сохранять ли геопривязку (по умолчанию False)
     """
+    file = files[0]
     # Проверяем что файл TIFF
     if not file.filename.lower().endswith(('.tif', '.tiff')):
         raise HTTPException(
@@ -188,71 +190,82 @@ async def convert_tiff_to_png(
             detail="Формат файла не поддерживается. Загрузите TIFF файл."
         )
 
-    # Создаем временную директорию
-    with tempfile.TemporaryDirectory() as temp_dir:
+    # Генерируем уникальное имя файла
+    file_extension = os.path.splitext(file.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+    upload_path = os.path.join(UPLOAD_DIR, unique_filename)
+
+    print(file.filename)
+
+    # Сохраняем загруженный файл
+    with open(upload_path, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+
+    temp_dir = tempfile.mkdtemp()
+    try:
+        dataset = None
         try:
-            # Сохраняем загруженный файл
-            input_tiff_path = os.path.join(temp_dir, file.filename)
-            with open(input_tiff_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-
-            # Открываем TIFF файл
-            with rasterio.open(input_tiff_path) as src:
-                # Получаем метаданные
-                profile = src.profile
-                transform = src.transform
-                crs = src.crs.to_wkt() if src.crs else None
-
-                # Обновляем профиль для PNG
-                profile.update(
-                    driver='PNG',
-                    dtype=rasterio.uint8,
-                    count=min(src.count, 4),  # PNG поддерживает до 4 каналов
-                    compress='deflate'
+            # Открываем исходный TIFF-файл
+            dataset = gdal.Open(upload_path, gdal.GA_ReadOnly)
+            if dataset is None:
+                raise Exception(f"Не удалось открыть файл: {upload_path}")
+        except RuntimeError as e:
+            print(f"Ошибка GDAL: {e}")
+            return HTTPException(
+                status_code=500,
+                detail=f"Ошибка при открытии TIFF файла: {str(e)}"
                 )
 
-                # Создаем имя для выходного файла
-                output_filename = file.filename.replace('.tif', '.png').replace('.tiff', '.png')
-                output_png_path = os.path.join(temp_dir, output_filename)
+        # Получаем геоинформацию
+        geotransform = dataset.GetGeoTransform()
+        projection = dataset.GetProjection()
+        bands_count = dataset.RasterCount
 
-                # Конвертируем и сохраняем PNG
-                with rasterio.open(output_png_path, 'w', **profile) as dst:
-                    # Читаем и записываем каждый канал
-                    for i in range(1, profile['count'] + 1):
-                        # Масштабируем данные до uint8 если нужно
-                        data = src.read(i)
-                        if src.dtypes[i-1] != 'uint8':
-                            # Нормализуем данные до 0-255
-                            data = (data - data.min()) / (data.max() - data.min()) * 255
-                            data = data.astype(rasterio.uint8)
-                        dst.write(data, i)
+        # Создаем драйвер для PNG
+        driver = gdal.GetDriverByName('PNG')
+        if driver is None:
+            raise Exception("Драйвер PNG не поддерживается")
 
-                # Создаем мировой файл с геопривязкой только если требуется
-                if save_georeference:
-                    create_world_file(output_png_path, transform, crs)
-                    print(f"Геопривязка сохранена: {output_png_path}")
-                else:
-                    print("Геопривязка не сохранена по запросу пользователя")
+        # Создаем имя для выходного файла
+        output_filename = file.filename.replace('.tiff', '.png').replace('.tif', '.png')
+        output_png_path = os.path.join(temp_dir, output_filename)
 
-                # Проверяем что файл создан
-                if not os.path.exists(output_png_path):
-                    raise HTTPException(
-                        status_code=500,
-                        detail="Ошибка при создании PNG файла"
-                    )
+        # Создаем выходной файл
+        png_dataset = driver.CreateCopy(output_png_path, dataset, 0)
+        if png_dataset is None:
+            raise Exception(f"Ошибка при создании PNG-файла: {output_png_path}")
 
-                # Возвращаем файл
-                return FileResponse(
-                    path=output_png_path,
-                    filename=output_filename,
-                    media_type='image/png'
-                )
+        # Закрываем datasets
+        png_dataset = None
+        dataset = None
 
-        except Exception as e:
+        # Создаем мировой файл с геопривязкой только если требуется
+        if save_georeference:
+            create_world_file(output_png_path, geotransform)
+            print(f"Геопривязка сохранена: {output_png_path}")
+        else:
+            print("Геопривязка не сохранена по запросу пользователя")
+
+        # Проверяем что файл создан
+        if not os.path.exists(output_png_path):
             raise HTTPException(
                 status_code=500,
-                detail=f"Ошибка при конвертации: {str(e)}"
+                detail="Ошибка при создании PNG файла"
             )
+
+        # Возвращаем файл
+        return FileResponse(
+            path=output_png_path,
+            filename=output_filename,
+            media_type='image/png'
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка при конвертации: {str(e)}"
+        )
 
 # Оригинальный эндпоинт для детекции по путям
 @app.post("/detect", response_model=DetectionResponse)
