@@ -45,7 +45,7 @@ class ImageViewer {
         const worldY = (offsetY - this.posY) / this.scale;
 
         this.scale *= delta;
-        this.scale = Math.max(0.1, Math.min(5, this.scale));
+        this.scale = Math.max(0.1, Math.min(80, this.scale));
 
         this.posX = offsetX - worldX * this.scale;
         this.posY = offsetY - worldY * this.scale;

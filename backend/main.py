@@ -1,26 +1,19 @@
 import os
-import shutil
 import tempfile
 import uuid
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Query
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Query, Response
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 import asyncio
-import concurrent.futures
 from osgeo import gdal
 
-from rasterio import RasterioIOError
 from sahi.predict import get_sliced_prediction
 from sahi import AutoDetectionModel
-from sahi.utils.cv import read_image
-from sahi.prediction import ObjectPrediction
 import torch
 from PIL import Image, ImageDraw, ImageFont
-import json
-import rasterio
 
 # Инициализация FastAPI приложения
 app = FastAPI(title="Object Detection API")
@@ -47,10 +40,12 @@ MODEL_PATH = "models/yolo_rgb_weights_obb.pt"
 detection_model = None
 
 # Папки для хранения файлов
-UPLOAD_DIR = "uploaded_images"
-ANNOTATED_DIR = "annotated_images"
+data_dir = tempfile.mkdtemp()
+UPLOAD_DIR = os.path.join(data_dir, "uploaded_images")
+ANNOTATED_DIR = os.path.join(data_dir, "annotated_images")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(ANNOTATED_DIR, exist_ok=True)
+print(f"Data directory: {data_dir}")
 
 # Модели данных
 class DetectionRequest(BaseModel):
@@ -67,6 +62,10 @@ class DetectionResponse(BaseModel):
 class UploadResponse(BaseModel):
     results: List[dict]
     errors: Optional[List[str]] = None
+
+class ImageMetadata(BaseModel):
+    image_path: str
+    filename: str
 
 # Инициализация модели при запуске
 @app.on_event("startup")
@@ -253,13 +252,60 @@ async def convert_tiff_to_png(
                 status_code=500,
                 detail="Ошибка при создании PNG файла"
             )
+        return FileResponse(path=output_png_path,media_type='image/png')
 
+
+        # image_data = None
+        # # Читаем существующее изображение
+        # try:
+        #     with open(output_png_path, "rb") as f:
+        #         image_data = f.read()
+        # except FileNotFoundError:
+        #     # Если файла нет, создаем простой заглушку
+        #     image_data = (b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00d\x00\x00\x00d\x08\x02\x00\x00\x00\xff\x80\x02'
+        #                   b'\x03\x00\x00\x00\x01sRGB\x00\xae\xce\x1c\xe9\x00\x00\x00\x04gAMA\x00\x00\xb1\x8f\x0b\xfca\x05'
+        #                   b'\x00\x00\x00\tpHYs\x00\x00\x0e\xc3\x00\x00\x0e\xc3\x01\xc7o\xa8d\x00\x00\x00\x1aIDATx\x9c\xed'
+        #                   b'\xc1\x01\r\x00\x00\x00\xc2\xa0\xf7Om\x0e7\xa0\x00\x00\x00\x00\x00\x00\x00\x00\xbe\r!\x00\x00'
+        #                   b'\x01\x00\x00\x00\x00')
+        # metadata = ImageMetadata(
+        #     image_path=upload_path,
+        #     filename=unique_filename
+        # )
+        #
+        # boundary = "----FastAPIMultipartBoundary"
+        #
+        # # Собираем multipart
+        # parts = [
+        #     f"--{boundary}",
+        #     "Content-Type: application/json",
+        #     'Content-Disposition: form-data; name="metadata"',
+        #     "",
+        #     metadata.json(),
+        #     "",
+        #     f"--{boundary}",
+        #     "Content-Type: image/png",
+        #     f'Content-Disposition: form-data; name="image"; filename="{output_filename}"',
+        #     "",
+        # ]
+        #
+        # response_body = "\r\n".join(parts).encode('utf-8')
+        # response_body += image_data
+        # response_body += f"\r\n--{boundary}--\r\n".encode('utf-8')
+        #
+        # return Response(
+        #     content=response_body,
+        #     media_type="multipart/form-data"
+        # )
+
+
+        # file_response = FileResponse(
+        #     path=output_png_path,
+        #     filename=output_filename,
+        #     media_type='image/png'
+        # )
+        # print(file_response)
         # Возвращаем файл
-        return FileResponse(
-            path=output_png_path,
-            filename=output_filename,
-            media_type='image/png'
-        )
+        # return file_response
 
     except Exception as e:
         raise HTTPException(
@@ -306,7 +352,7 @@ async def upload_images(files: List[UploadFile] = File(...)):
     errors = []
 
     # Создаем executor для фоновых задач
-    loop = asyncio.get_event_loop()
+    # loop = asyncio.get_event_loop()
 
     for file in files:
         try:
@@ -314,7 +360,6 @@ async def upload_images(files: List[UploadFile] = File(...)):
             file_extension = os.path.splitext(file.filename)[1]
             unique_filename = f"{uuid.uuid4()}{file_extension}"
             upload_path = os.path.join(UPLOAD_DIR, unique_filename)
-            # annotated_path = os.path.join(ANNOTATED_DIR, unique_filename)
 
             print(file.filename)
 
@@ -337,8 +382,6 @@ async def upload_images(files: List[UploadFile] = File(...)):
             formatted_result = {
                 "original_filename": file.filename,
                 "uploaded_path": upload_path,
-                # "annotated_path": annotated_path,
-                # "detections": detections
             }
 
             results.append(formatted_result)

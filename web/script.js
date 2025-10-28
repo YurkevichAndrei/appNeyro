@@ -186,15 +186,9 @@ async function convertTiffToPng(file) {
             method: 'POST',
             body: formData // Content-Type устанавливается автоматически как multipart/form-data
         });
-
         if (response.ok) {
-            const result = await response.json();
-            console.log('Изображение успешно конвертировано!', result);
-
-//            res['result'] = result;
-        } else {
-            console.error('Ошибка при загрузке:', response.status);
-            res['error'] = 'error upload';
+            let imageBlob = await response.blob();
+            res['result'] = imageBlob;
         }
     } catch (error) {
         console.error('Сетевая ошибка:', error);
@@ -216,7 +210,7 @@ async function handleFileUpload(event) {
     domCache.uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Загрузка...';
     domCache.uploadBtn.disabled = true;
 
-    const SIZE_THRESHOLD = 500 * 1024 * 1024; // 500 МБ
+    const SIZE_THRESHOLD = 200 * 1024 * 1024; // 200 МБ
     const processedFiles = new Set();
     const folderStats = {
         total: 0,
@@ -273,10 +267,16 @@ async function handleFileUpload(event) {
                     folderStats.skipped++;
                     continue;
                 } else {
-                    if (convertResult['result']['results'] !== (null || undefined)) {
-                        console.log('Изображение успешно конвертировано!', convertResult['result']['results']);
-                        file = convertResult['result']['results'][0];
-                        images.push({"original_filename": file.name, "uploaded_path": file.name})
+                    if (convertResult['result'] !== (null || undefined)) {
+                        console.log('Изображение успешно конвертировано!', convertResult['result']);
+                        file = convertResult['result'];
+                        if (file.name === (null || undefined)) {
+                            file.name = filePath
+                        }
+//                        images.push({
+//                            "original_filename": convertResult['result']['metadata']['filename'],
+//                            "uploaded_path": convertResult['result']['metadata']['image_path']
+//                        })
                     }
                 }
 
@@ -352,33 +352,35 @@ async function handleFileUpload(event) {
         // Загружаем файлы на сервер (если требуется)
         let res;
         try {
-            res = await uploadToServer(imageForServer);
-            console.log("res", res);
+            if (imageForServer.length !== 0) {
+                res = await uploadToServer(imageForServer);
+                console.log("res", res);
 
-            if (res['error'] === 'error upload') {
-                showNotification('Не удалось загрузить изображения на сервер.', 'error');
-                // Отзываем blob URLs в случае ошибки
-                successfulImages.forEach(img => {
-                    if (img.isBlobUrl) {
-                        URL.revokeObjectURL(img.url);
+                if (res['error'] === 'error upload') {
+                    showNotification('Не удалось загрузить изображения на сервер.', 'error');
+                    // Отзываем blob URLs в случае ошибки
+                    successfulImages.forEach(img => {
+                        if (img.isBlobUrl) {
+                            URL.revokeObjectURL(img.url);
+                        }
+                    });
+                    images = [];
+                    return;
+                } else if (res['error'] === 'error network') {
+                    showNotification('Сетевая ошибка при загрузке изображений. Попробуйте позже.', 'warning');
+                    // Отзываем blob URLs в случае ошибки
+                    successfulImages.forEach(img => {
+                        if (img.isBlobUrl) {
+                            URL.revokeObjectURL(img.url);
+                        }
+                    });
+                    images = [];
+                    return;
+                } else {
+                    if (res['result']['results'] !== (null || undefined)) {
+                        console.log('Изображения успешно загружены на сервер!', res['result']['results']);
+                        images.push(...res['result']['results']);
                     }
-                });
-                images = [];
-                return;
-            } else if (res['error'] === 'error network') {
-                showNotification('Сетевая ошибка при загрузке изображений. Попробуйте позже.', 'warning');
-                // Отзываем blob URLs в случае ошибки
-                successfulImages.forEach(img => {
-                    if (img.isBlobUrl) {
-                        URL.revokeObjectURL(img.url);
-                    }
-                });
-                images = [];
-                return;
-            } else {
-                if (res['result']['results'] !== (null || undefined)) {
-                    console.log('Изображения успешно загружены на сервер!', res['result']['results']);
-                    images.push(...res['result']['results']);
                 }
             }
         } catch (error) {
