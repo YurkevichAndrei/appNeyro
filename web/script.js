@@ -188,7 +188,11 @@ async function convertTiffToPng(file) {
         });
         if (response.ok) {
             let imageBlob = await response.blob();
-            res['result'] = imageBlob;
+            result = {
+                blob: imageBlob,
+                path: response.headers.get('Filepath')
+            }
+            res['result'] = result;
         }
     } catch (error) {
         console.error('Сетевая ошибка:', error);
@@ -269,14 +273,14 @@ async function handleFileUpload(event) {
                 } else {
                     if (convertResult['result'] !== (null || undefined)) {
                         console.log('Изображение успешно конвертировано!', convertResult['result']);
-                        file = convertResult['result'];
+                        file = convertResult['result'][blob];
                         if (file.name === (null || undefined)) {
                             file.name = filePath
                         }
-//                        images.push({
-//                            "original_filename": convertResult['result']['metadata']['filename'],
-//                            "uploaded_path": convertResult['result']['metadata']['image_path']
-//                        })
+                        images.push({
+                            "original_filename": filePath,
+                            "uploaded_path": convertResult['result']['path']
+                        })
                     }
                 }
 
@@ -435,6 +439,7 @@ async function handleFileUpload(event) {
         domCache.paramsBtn.disabled = false;
         event.target.value = '';
     }
+    console.log('images', images);
 }
 
 // Дополнительная функция для очистки blob URLs при удалении изображений
@@ -640,7 +645,7 @@ function updateDetectedObjectsList() {
 }
 
 // Анализ изображений
-function analyzeImages() {
+async function analyzeImages() {
     if (uploadedImages.length === 0) {
         alert('Пожалуйста, загрузите изображения для анализа.');
         return;
@@ -651,43 +656,58 @@ function analyzeImages() {
     const originalText = analyzeBtn.innerHTML;
     analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Анализ...';
     analyzeBtn.disabled = true;
-    console.log(uploadedImages);
+    console.log('uploadedImages', uploadedImages);
+    imagePaths = images.map(image => image.uploaded_path);
+    console.log('imagePaths', imagePaths);
+    // Подготавливаем данные для отправки
+    const requestData = {
+        image_paths: imagePaths
+    };
+
+    // Отправляем POST запрос на эндпоинт /detect
+    const response = await fetch('server/detect', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(requestData)
+    });
+
+    console.log('response detect', response);
 
     // Имитация анализа с задержкой
-    setTimeout(() => {
-        // нужно будет переделать под работу с сервером
-        // Анализируем каждое изображение
-        uploadedImages.forEach(image => {
-            if (!image.analyzed) {
-                // Генерируем случайные объекты для изображения
-                const objects = generateRandomObjects();
-                detectedObjects[image.id] = objects;
-                image.analyzed = true;
-            }
-        });
-
-        // Обновляем интерфейс
-        updateImageList();
-        if (currentImageIndex >= 0) {
-            updateDetectedObjectsList();
-        }
-
-        // Восстанавливаем кнопку
-        analyzeBtn.innerHTML = originalText;
-        analyzeBtn.disabled = false;
-
-//        // Сохраняем данные
-//        saveToLocalStorage();
-
-        // Показываем уведомление об успехе
-        showNotification('Анализ завершен!', 'success');
-
-        domCache.uploadBtn.disabled = true;
-        domCache.analyzeBtn.disabled = false;
-        domCache.exportBtn.disabled = false;
-        domCache.paramsBtn.disabled = true;
-
-    }, 0);
+//    setTimeout(() => {
+//        // нужно будет переделать под работу с сервером
+//        // Анализируем каждое изображение
+//        uploadedImages.forEach(image => {
+//            if (!image.analyzed) {
+//                // Генерируем случайные объекты для изображения
+//                const objects = generateRandomObjects();
+//                detectedObjects[image.id] = objects;
+//                image.analyzed = true;
+//            }
+//        });
+//
+//        // Обновляем интерфейс
+//        updateImageList();
+//        if (currentImageIndex >= 0) {
+//            updateDetectedObjectsList();
+//        }
+//
+//        // Восстанавливаем кнопку
+//        analyzeBtn.innerHTML = originalText;
+//        analyzeBtn.disabled = false;
+//
+////        // Сохраняем данные
+////        saveToLocalStorage();
+//
+//        // Показываем уведомление об успехе
+//        showNotification('Анализ завершен!', 'success');
+//
+//        domCache.uploadBtn.disabled = true;
+//        domCache.analyzeBtn.disabled = false;
+//        domCache.exportBtn.disabled = false;
+//        domCache.paramsBtn.disabled = true;
+//
+//    }, 0);
 }
 
 // Генерация случайных объектов для имитации

@@ -252,7 +252,8 @@ async def convert_tiff_to_png(
                 status_code=500,
                 detail="Ошибка при создании PNG файла"
             )
-        return FileResponse(path=output_png_path,media_type='image/png')
+        headers = {'Filepath': upload_path}
+        return FileResponse(path=output_png_path, media_type='image/png', headers=headers)
 
 
         # image_data = None
@@ -324,6 +325,7 @@ async def detect_objects_endpoint(request: DetectionRequest, background_tasks: B
     loop = asyncio.get_event_loop()
 
     for image_path in request.image_paths:
+        print(image_path)
         try:
             # Последовательная детекция на GPU
             detections = await loop.run_in_executor(
