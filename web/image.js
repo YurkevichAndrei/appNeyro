@@ -3,6 +3,9 @@ class ImageViewer {
         this.container = document.getElementById(containerId);
         this.imageWrapper = document.getElementById('imagePreview');
         this.img = document.getElementById('zoomImage');
+        this.annotationContainer = document.createElement('div');
+        this.annotationContainer.id = 'annotationContainer';
+
 
         this.scale = 1;
         this.posX = 0;
@@ -10,6 +13,10 @@ class ImageViewer {
         this.isDragging = false;
         this.startX = 0;
         this.startY = 0;
+        this.naturalWidth = 0;
+        this.naturalHeight = 0;
+        this.containerWidth = 0;
+        this.containerHeight = 0;
 
         this.init();
     }
@@ -26,6 +33,11 @@ class ImageViewer {
         this.container.addEventListener('touchstart', this.startDrag.bind(this));
         this.container.addEventListener('touchmove', this.onDrag.bind(this));
         this.container.addEventListener('touchend', this.endDrag.bind(this));
+
+        // Получаем размеры контейнера
+        const rect = this.container.getBoundingClientRect();
+        this.containerWidth = rect.width;
+        this.containerHeight = rect.height;
 
         this.updateTransform();
     }
@@ -83,6 +95,25 @@ class ImageViewer {
     updateTransform() {
         this.imageWrapper.style.transform =
         `translate(${this.posX}px, ${this.posY}px) scale(${this.scale})`;
+        if (this.img) {
+            const rect = this.img.getBoundingClientRect();
+            this.annotationContainer.style.width = rect.width + 'px';
+            this.annotationContainer.style.height = rect.height + 'px';
+        }
+
+    }
+
+    setNaturalSize(width, height) {
+        this.naturalWidth = width;
+        this.naturalHeight = height;
+    }
+
+    // Преобразование координат изображения в координаты контейнера
+    imageToContainer(px, py) {
+        return {
+            x: px * this.scale + this.posX,
+            y: py * this.scale + this.posY
+        };
     }
 
     // Добавление геометрических фигур
@@ -91,22 +122,28 @@ class ImageViewer {
         circle.className = 'annotation circle';
         circle.style.width = `${radius * 2}px`;
         circle.style.height = `${radius * 2}px`;
-        circle.style.left = `${x}%`;
-        circle.style.top = `${y}%`;
+        circle.style.left = `${px - radius}px`;
+        circle.style.top = `${py - radius}px`;
 
-        this.imageWrapper.appendChild(circle);
+        this.annotationContainer.appendChild(circle);
         this.addLabel(x, y, label);
     }
 
     addRectangle(x, y, width, height, label = '') {
+        if (!(document.getElementById('annotationContainer'))) {
+            this.imageWrapper.appendChild(this.annotationContainer);
+        }
+        const coords = this.imageToContainer(x, y);
         const rect = document.createElement('div');
         rect.className = 'annotation rectangle';
         rect.style.width = `${width}px`;
         rect.style.height = `${height}px`;
-        rect.style.left = `${x}%`;
-        rect.style.top = `${y}%`;
+        rect.style.left = `${coords.x}px`;
+        rect.style.top = `${coords.y}px`;
 
-        this.imageWrapper.appendChild(rect);
+        console.log(rect);
+
+        this.annotationContainer.appendChild(rect);
         this.addLabel(x, y, label);
     }
 
@@ -116,21 +153,24 @@ class ImageViewer {
         const label = document.createElement('div');
         label.className = 'label';
         label.textContent = text;
-        label.style.left = `${x}%`;
-        label.style.top = `calc(${y}% + 20px)`;
+        label.style.left = `${x}px`;
+        label.style.top = `calc(${y}px + 20px)`;
 
-        this.imageWrapper.appendChild(label);
+        this.annotationContainer.appendChild(label);
+    }
+
+    clearAnnotations() {
+        const elementsToKeep = this.imageWrapper.querySelectorAll(':not(div)');
+        this.imageWrapper.replaceChildren(...elementsToKeep);
+    }
+
+    resetView() {
+        this.scale = 1;
+        this.posX = 0;
+        this.posY = 0;
+        this.updateTransform();
     }
 }
 
 // Инициализация после загрузки изображения
-const viewer = new ImageViewer('imageContainer');
-
-// Пример добавления фигур после загрузки
-//viewer.img.onload = function() {
-//    // Круг в центре изображения
-//    viewer.addCircle(50, 50, 30, 'Center Point');
-//
-//    // Прямоугольник в правом верхнем углу
-//    viewer.addRectangle(80, 20, 100, 60, 'Important Area');
-//};
+var viewer = new ImageViewer('imageContainer');

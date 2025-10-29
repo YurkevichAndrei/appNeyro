@@ -105,9 +105,10 @@ def detect_objects(image_path: str) -> List[dict]:
         for obj in result.object_prediction_list:
             bbox = obj.bbox.to_xywh()
             detections.append({
-                "category_name": obj.category.name,
-                "bbox": [int(bbox.x), int(bbox.y), int(bbox.w), int(bbox.h)],
-                "confidence": float(obj.score.value)
+                "type": obj.category.name,
+                "bbox": [int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])], # x y w h
+                "confidence": float(obj.score.value),
+                "verified": False
             })
 
         return detections
@@ -254,59 +255,6 @@ async def convert_tiff_to_png(
             )
         headers = {'Filepath': upload_path}
         return FileResponse(path=output_png_path, media_type='image/png', headers=headers)
-
-
-        # image_data = None
-        # # Читаем существующее изображение
-        # try:
-        #     with open(output_png_path, "rb") as f:
-        #         image_data = f.read()
-        # except FileNotFoundError:
-        #     # Если файла нет, создаем простой заглушку
-        #     image_data = (b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00d\x00\x00\x00d\x08\x02\x00\x00\x00\xff\x80\x02'
-        #                   b'\x03\x00\x00\x00\x01sRGB\x00\xae\xce\x1c\xe9\x00\x00\x00\x04gAMA\x00\x00\xb1\x8f\x0b\xfca\x05'
-        #                   b'\x00\x00\x00\tpHYs\x00\x00\x0e\xc3\x00\x00\x0e\xc3\x01\xc7o\xa8d\x00\x00\x00\x1aIDATx\x9c\xed'
-        #                   b'\xc1\x01\r\x00\x00\x00\xc2\xa0\xf7Om\x0e7\xa0\x00\x00\x00\x00\x00\x00\x00\x00\xbe\r!\x00\x00'
-        #                   b'\x01\x00\x00\x00\x00')
-        # metadata = ImageMetadata(
-        #     image_path=upload_path,
-        #     filename=unique_filename
-        # )
-        #
-        # boundary = "----FastAPIMultipartBoundary"
-        #
-        # # Собираем multipart
-        # parts = [
-        #     f"--{boundary}",
-        #     "Content-Type: application/json",
-        #     'Content-Disposition: form-data; name="metadata"',
-        #     "",
-        #     metadata.json(),
-        #     "",
-        #     f"--{boundary}",
-        #     "Content-Type: image/png",
-        #     f'Content-Disposition: form-data; name="image"; filename="{output_filename}"',
-        #     "",
-        # ]
-        #
-        # response_body = "\r\n".join(parts).encode('utf-8')
-        # response_body += image_data
-        # response_body += f"\r\n--{boundary}--\r\n".encode('utf-8')
-        #
-        # return Response(
-        #     content=response_body,
-        #     media_type="multipart/form-data"
-        # )
-
-
-        # file_response = FileResponse(
-        #     path=output_png_path,
-        #     filename=output_filename,
-        #     media_type='image/png'
-        # )
-        # print(file_response)
-        # Возвращаем файл
-        # return file_response
 
     except Exception as e:
         raise HTTPException(

@@ -104,7 +104,8 @@ body {
 /* Превью изображения */
 .image-preview {
     min-height: var(--row-min-height);
-    display: flex;
+/*    display: flex;*/
+    display: inline-block;
     align-items: center;
     justify-content: center;
     background-color: #ffffff;
@@ -425,6 +426,39 @@ body {
 /* Специфичные стили для ряда с превью и объектами */
 #previewAndDetectedRow {
     margin-bottom: 0.3rem;
+}
+
+.annotation {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.rectangle {
+    border: 2px solid var(--danger);
+    background: transparent;
+}
+
+.label {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.bg-accent {
+    background: var(--accent) !important;
+}
+
+#annotationContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none; /* Чтобы клики проходили сквозь overlay */
+    background: rgba(255, 0, 0, 0.3); /* Для визуализации (можно убрать) */
 }
 
 /* Адаптивность */

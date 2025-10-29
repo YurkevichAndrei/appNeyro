@@ -574,6 +574,8 @@ function selectImage(index) {
     currentImageIndex = index;
     const image = uploadedImages[index];
 
+//    domCache.imagePreview.innerHTML = "";
+
     // Быстрое обновление превью без перерисовки всего DOM
     const previewImg = domCache.imagePreview.querySelector('img');
     if (previewImg) {
@@ -582,7 +584,9 @@ function selectImage(index) {
         previewImg.alt = image.name;
     } else {
         // Создаем новое изображение
-        domCache.imagePreview.innerHTML = `<img src="${image.url}" alt="${image.name}" class="fade-in" id="zoomImage">`;
+        domCache.imagePreview.innerHTML = `<img src="${image.url}" alt="${image.name}" class="fade-in" id="zoomImage" onload="onImageLoad()">`;
+//        domCache.imagePreview.innerHTML = "";
+//        viewer.loadImage(image.url, image.name);
     }
 
     // Обновляем название текущего изображения
@@ -605,7 +609,7 @@ function selectImage(index) {
 // Обновление списка распознанных объектов
 function updateDetectedObjectsList() {
     const imageId = uploadedImages[currentImageIndex].id;
-
+    console.log('imageId', imageId);
     if (!detectedObjects[imageId] || detectedObjects[imageId].length === 0) {
         domCache.detectedObjects.innerHTML = `
             <div class="empty-state">
@@ -616,17 +620,20 @@ function updateDetectedObjectsList() {
         return;
     }
 
+    viewer.clearAnnotations();
     let html = '';
     detectedObjects[imageId].forEach((obj, index) => {
         const checked = obj.verified ? 'checked' : '';
         html += `
             <div class="object-item fade-in">
                 <input type="checkbox" class="object-checkbox form-check-input" data-image="${imageId}" data-index="${index}" ${checked}>
-                <span class="object-type badge bg-${obj.color}">${obj.type}</span>
+                <span class="object-type badge bg-accent">${obj.type}</span>
                 <span>Объект ${index + 1}</span>
                 <span class="object-confidence">${(obj.confidence * 100).toFixed(1)}%</span>
             </div>
         `;
+
+        viewer.addRectangle(obj.bbox[0], obj.bbox[1], obj.bbox[2], obj.bbox[3], `${index + 1}. ${obj.type} ${(obj.confidence * 100).toFixed(1)}`);
     });
 
     domCache.detectedObjects.innerHTML = html;
@@ -671,7 +678,45 @@ async function analyzeImages() {
         body: JSON.stringify(requestData)
     });
 
-    console.log('response detect', response);
+    const result_detect = await response.json();
+    console.log('response detect', result_detect);
+
+    if (result_detect['errors'] !== null) {
+        console.log('errors', result_detect['errors']);
+        showNotification('Ошибка при анализе изображений.', 'error');
+        return;
+    }
+
+    if (result_detect['results'] !== (null || undefined)) {
+        for (let i = 0; i < result_detect['results'].length; i++) {
+            console.log('image_path', i, result_detect['results'][i]['image_path']);
+            const imagePath = images.find(img => img.uploaded_path === result_detect['results'][i]['image_path']);
+            let image = uploadedImages.find(img => img.name === imagePath['original_filename']);
+            if (image) {
+                image.analyzed = true;
+                detectedObjects[image.id] = result_detect['results'][i]['detections'];
+            }
+        }
+    }
+
+    // Обновляем интерфейс
+    updateImageList();
+    if (currentImageIndex >= 0) {
+        updateDetectedObjectsList();
+    }
+
+    // Восстанавливаем кнопку
+    analyzeBtn.innerHTML = originalText;
+    analyzeBtn.disabled = false;
+
+    // Показываем уведомление об успехе
+    showNotification('Анализ завершен!', 'success');
+
+    domCache.uploadBtn.disabled = true;
+    domCache.analyzeBtn.disabled = false;
+    domCache.exportBtn.disabled = false;
+    domCache.paramsBtn.disabled = true;
+
 
     // Имитация анализа с задержкой
 //    setTimeout(() => {
@@ -807,3 +852,8 @@ function saveSettings() {
 
 }
 
+function onImageLoad() {
+    const img = document.getElementById('zoomImage');
+    console.log('wh', img.naturalWidth, img.naturalHeight);
+    viewer.setNaturalSize(img.naturalWidth, img.naturalHeight);
+}
