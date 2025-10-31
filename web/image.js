@@ -93,14 +93,7 @@ class ImageViewer {
     }
 
     updateTransform() {
-        this.imageWrapper.style.transform =
-        `translate(${this.posX}px, ${this.posY}px) scale(${this.scale})`;
-        if (this.img) {
-            const rect = this.img.getBoundingClientRect();
-            this.annotationContainer.style.width = rect.width + 'px';
-            this.annotationContainer.style.height = rect.height + 'px';
-        }
-
+        this.imageWrapper.style.transform = `translate(${this.posX}px, ${this.posY}px) scale(${this.scale})`;
     }
 
     setNaturalSize(width, height) {
@@ -110,10 +103,23 @@ class ImageViewer {
 
     // Преобразование координат изображения в координаты контейнера
     imageToContainer(px, py) {
-        return {
+        console.log(document.getElementById('zoomImage'));
+        let img = document.getElementById('zoomImage');
+        let xs = img.width * px / this.naturalWidth;
+        let ys = img.height * py / this.naturalHeight;
+        let ww = (this.containerWidth - img.width) / 2;
+        let hh = (this.containerHeight - img.height) / 2;
+        let s = {
+            x: xs * this.scale + this.posX + ww,
+            y: ys * this.scale + this.posY + hh
+        };
+        console.log(s);
+        let xl = {
             x: px * this.scale + this.posX,
             y: py * this.scale + this.posY
         };
+        console.log(xl);
+        return s;
     }
 
     // Добавление геометрических фигур
@@ -130,21 +136,27 @@ class ImageViewer {
     }
 
     addRectangle(x, y, width, height, label = '') {
+        this.updateTransform();
         if (!(document.getElementById('annotationContainer'))) {
             this.imageWrapper.appendChild(this.annotationContainer);
         }
         const coords = this.imageToContainer(x, y);
         const rect = document.createElement('div');
         rect.className = 'annotation rectangle';
-        rect.style.width = `${width}px`;
-        rect.style.height = `${height}px`;
-        rect.style.left = `${coords.x}px`;
-        rect.style.top = `${coords.y}px`;
+        let img = document.getElementById('zoomImage');
+        let w = width * this.scale * (img.width / this.naturalWidth);
+        let h = height * this.scale * (img.height / this.naturalHeight);
+        let xx = coords.x + (w / 2);
+        let yy = coords.y + (h / 2);
+        rect.style.width = `${w}px`;
+        rect.style.height = `${h}px`;
+        rect.style.left = `${xx}px`;
+        rect.style.top = `${yy}px`;
 
         console.log(rect);
 
         this.annotationContainer.appendChild(rect);
-        this.addLabel(x, y, label);
+        this.addLabel(xx, yy, label);
     }
 
     addLabel(x, y, text) {
@@ -160,8 +172,7 @@ class ImageViewer {
     }
 
     clearAnnotations() {
-        const elementsToKeep = this.imageWrapper.querySelectorAll(':not(div)');
-        this.imageWrapper.replaceChildren(...elementsToKeep);
+        this.annotationContainer.innerHTML = ""
     }
 
     resetView() {

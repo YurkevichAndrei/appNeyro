@@ -75,7 +75,7 @@ async def startup_event():
         detection_model = AutoDetectionModel.from_pretrained(
             model_type="ultralytics",
             model_path=MODEL_PATH,
-            confidence_threshold=0.3,
+            confidence_threshold=0.5,
             device="cuda:0" if torch.cuda.is_available() else "cpu"
         )
         print(f"Model loaded successfully on device: {detection_model.device}")
@@ -117,9 +117,10 @@ def detect_objects(image_path: str) -> List[dict]:
         raise Exception(f"Detection failed for {image_path}: {str(e)}")
 
 # Функция для рисования bounding boxes
-def draw_bounding_boxes(image_path: str, detections: List[dict], output_path: str):
+def draw_bounding_boxes(image_path: str, detections: List[dict]):
     """Рисует bounding boxes на изображении и сохраняет результат"""
     try:
+        output_path = os.path.join(ANNOTATED_DIR, os.path.basename(image_path))
         # Открываем изображение
         image = Image.open(image_path)
         draw = ImageDraw.Draw(image)
@@ -128,23 +129,28 @@ def draw_bounding_boxes(image_path: str, detections: List[dict], output_path: st
         colors = ['red', 'green', 'blue', 'yellow', 'purple', 'orange']
         font = ImageFont.load_default()
 
+        print(detections)
+
         # Рисуем каждый bounding box
-        for i, detection in enumerate(detections):
+        for detection in detections:
+            print(detection)
             bbox = detection['bbox']
             x, y, w, h = bbox
-            color = colors[i % len(colors)]
+            color = 'red'
 
             # Рисуем прямоугольник
             draw.rectangle([x, y, x + w, y + h], outline=color, width=3)
 
             # Добавляем подпись
-            label = f"{detection['category_name']} {detection['confidence']:.2f}"
+            label = f"{detection['type']} {detection['confidence']:.2f}"
+            print(label)
             text_bbox = draw.textbbox((x, y), label, font=font)
             draw.rectangle(text_bbox, fill=color)
             draw.text((x, y), label, fill='white', font=font)
 
         # Сохраняем изображение
         image.save(output_path)
+        print(output_path)
 
     except Exception as e:
         raise Exception(f"Failed to draw bounding boxes: {str(e)}")
@@ -278,6 +284,11 @@ async def detect_objects_endpoint(request: DetectionRequest, background_tasks: B
             # Последовательная детекция на GPU
             detections = await loop.run_in_executor(
                 None, detect_objects, image_path
+            )
+
+            # Нанесение результатов
+            await loop.run_in_executor(
+                None, draw_bounding_boxes, image_path, detections
             )
 
             # Форматирование в отдельном процессе

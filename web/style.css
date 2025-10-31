@@ -103,9 +103,9 @@ body {
 
 /* Превью изображения */
 .image-preview {
-    min-height: var(--row-min-height);
-/*    display: flex;*/
-    display: inline-block;
+/*    min-height: var(--row-min-height);*/
+    display: flex;
+/*    display: inline-block;*/
     align-items: center;
     justify-content: center;
     background-color: #ffffff;

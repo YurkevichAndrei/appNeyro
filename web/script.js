@@ -575,7 +575,7 @@ function selectImage(index) {
     const image = uploadedImages[index];
 
 //    domCache.imagePreview.innerHTML = "";
-
+    viewer.resetView();
     // Быстрое обновление превью без перерисовки всего DOM
     const previewImg = domCache.imagePreview.querySelector('img');
     if (previewImg) {
