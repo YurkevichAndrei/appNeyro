@@ -63,6 +63,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Настройка элементов интерфейса
     initializeUI();
 
+    viewer.setAnnotationRecalcCallback(function() {
+        updateDetectedObjectsList();
+    });
+
 //    // Загрузка сохраненных данных (если есть)
 //    loadSavedData();
 });
@@ -575,7 +579,7 @@ function selectImage(index) {
     const image = uploadedImages[index];
 
 //    domCache.imagePreview.innerHTML = "";
-    viewer.resetView();
+
     // Быстрое обновление превью без перерисовки всего DOM
     const previewImg = domCache.imagePreview.querySelector('img');
     if (previewImg) {
@@ -608,6 +612,7 @@ function selectImage(index) {
 
 // Обновление списка распознанных объектов
 function updateDetectedObjectsList() {
+    viewer.resetView();
     const imageId = uploadedImages[currentImageIndex].id;
     console.log('imageId', imageId);
     if (!detectedObjects[imageId] || detectedObjects[imageId].length === 0) {

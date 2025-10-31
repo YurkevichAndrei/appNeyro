@@ -5,6 +5,7 @@ class ImageViewer {
         this.img = document.getElementById('zoomImage');
         this.annotationContainer = document.createElement('div');
         this.annotationContainer.id = 'annotationContainer';
+        this.recalcAnnotations = function () {};
 
 
         this.scale = 1;
@@ -34,12 +35,28 @@ class ImageViewer {
         this.container.addEventListener('touchmove', this.onDrag.bind(this));
         this.container.addEventListener('touchend', this.endDrag.bind(this));
 
+        this.updateContainerSize();
+
+        this.resizeObserver = new ResizeObserver(entries => {
+            this.updateContainerSize();
+        });
+        this.resizeObserver.observe(this.container);
+
+        this.updateTransform();
+    }
+
+    setAnnotationRecalcCallback(callback) {
+        if (typeof callback === 'function') {
+            this.recalcAnnotations = callback;
+        }
+    }
+
+    updateContainerSize() {
         // Получаем размеры контейнера
         const rect = this.container.getBoundingClientRect();
         this.containerWidth = rect.width;
         this.containerHeight = rect.height;
-
-        this.updateTransform();
+        this.recalcAnnotations();
     }
 
     handleWheel(e) {
