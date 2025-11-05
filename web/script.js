@@ -14,51 +14,10 @@ let domCache = {};
 
 let images = []
 
-// Объекты для имитации распознавания по тематикам
-const objectThemes = {
-    animals: [
-        { type: 'Собака', color: 'primary' },
-        { type: 'Кошка', color: 'success' },
-        { type: 'Птица', color: 'info' },
-        { type: 'Лошадь', color: 'warning' },
-        { type: 'Корова', color: 'secondary' }
-    ],
-    vehicles: [
-        { type: 'Автомобиль', color: 'primary' },
-        { type: 'Грузовик', color: 'success' },
-        { type: 'Мотоцикл', color: 'info' },
-        { type: 'Велосипед', color: 'warning' },
-        { type: 'Автобус', color: 'secondary' }
-    ],
-    plants: [
-        { type: 'Дерево', color: 'primary' },
-        { type: 'Куст', color: 'success' },
-        { type: 'Цветок', color: 'info' },
-        { type: 'Трава', color: 'warning' },
-        { type: 'Кактус', color: 'secondary' }
-    ],
-    buildings: [
-        { type: 'Дом', color: 'primary' },
-        { type: 'Офис', color: 'success' },
-        { type: 'Магазин', color: 'info' },
-        { type: 'Завод', color: 'warning' },
-        { type: 'Школа', color: 'secondary' }
-    ]
-};
-
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
     // Инициализация кэша DOM элементов
     initializeDomCache();
-
-    // Проверяем поддержку webkitdirectory
-    const fileInput = document.getElementById('fileInput');
-    if (fileInput && 'webkitdirectory' in fileInput) {
-        initUploadModeToggle();
-    } else {
-        // Если браузер не поддерживает webkitdirectory, скрываем переключатель
-        console.warn('Браузер не поддерживает выбор папок');
-    }
 
     // Настройка элементов интерфейса
     initializeUI();
@@ -116,35 +75,6 @@ function initializeUI() {
     domCache.analyzeBtn.disabled = true;
     domCache.exportBtn.disabled = true;
     domCache.paramsBtn.disabled = true;
-}
-
-// Добавляем переключатель режима загрузки
-function initUploadModeToggle() {
-    const toggleContainer = document.createElement('div');
-    toggleContainer.className = 'mb-3 form-check form-switch';
-    toggleContainer.innerHTML = `
-        <input type="checkbox" class="form-check-input" id="folderMode" checked>
-        <label class="form-check-label" for="folderMode">Загрузка папки</label>
-    `;
-
-    if (domCache.detectionLimit.parentNode && domCache.detectionLimit.parentNode.parentNode) {
-        domCache.detectionLimit.parentNode.parentNode.insertBefore(toggleContainer, domCache.detectionLimit.parentNode);
-
-        document.getElementById('folderMode').addEventListener('change', function(e) {
-            const fileInput = document.getElementById('fileInput');
-            if (fileInput) {
-                if (e.target.checked) {
-                    fileInput.setAttribute('webkitdirectory', '');
-                    fileInput.setAttribute('directory', '');
-                    fileInput.removeAttribute('multiple');
-                } else {
-                    fileInput.removeAttribute('webkitdirectory');
-                    fileInput.removeAttribute('directory');
-                    fileInput.setAttribute('multiple', '');
-                }
-            }
-        });
-    }
 }
 
 // `fileList` - это массив файлов, полученных из input
@@ -615,7 +545,7 @@ function updateDetectedObjectsList() {
     viewer.resetView();
     const imageId = uploadedImages[currentImageIndex].id;
     console.log('imageId', imageId);
-    if (!detectedObjects[imageId] || detectedObjects[imageId].length === 0) {
+    if (!detectedObjects[imageId] || detectedObjects[imageId]['detections'].length === 0) {
         domCache.detectedObjects.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-search mb-3"></i>
@@ -626,29 +556,101 @@ function updateDetectedObjectsList() {
     }
 
     viewer.clearAnnotations();
+
+    if (document.getElementById('button-visible') !== null) {
+        var button_visible = document.getElementById('button-visible');
+        button_visible.setAttribute('visibility', 'true');
+        button_visible.innerHTML = `Скрыть все`;
+    }
+
     let html = '';
-    detectedObjects[imageId].forEach((obj, index) => {
+    detectedObjects[imageId]['detections'].forEach((obj, index) => {
         const checked = obj.verified ? 'checked' : '';
         html += `
-            <div class="object-item fade-in">
+            <div class="object-item fade-in" id="object-${index}" data-index="${index}">
                 <input type="checkbox" class="object-checkbox form-check-input" data-image="${imageId}" data-index="${index}" ${checked}>
                 <span class="object-type badge bg-accent">${obj.type}</span>
                 <span>Объект ${index + 1}</span>
                 <span class="object-confidence">${(obj.confidence * 100).toFixed(1)}%</span>
+                <button class="toggle-visible" type="button" visibility="true" data-index="${index}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
+                      <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                      <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+                    </svg>
+                </button>
             </div>
         `;
 
-        viewer.addRectangle(obj.bbox[0], obj.bbox[1], obj.bbox[2], obj.bbox[3], `${index + 1}. ${obj.type} ${(obj.confidence * 100).toFixed(1)}`);
+        viewer.addRectangle(obj.bbox[0], obj.bbox[1], obj.bbox[2], obj.bbox[3], `${index + 1}. ${obj.type} ${(obj.confidence * 100).toFixed(1)}`, index);
     });
 
     domCache.detectedObjects.innerHTML = html;
+
+    var objects = document.querySelectorAll('.object-item');
+    objects.forEach(object => {
+        object.addEventListener('mouseenter', () => {
+           const index = object.getAttribute('data-index');
+           document.getElementById(`label_${index}`).style.background = 'var(--color)';
+        });
+        object.addEventListener('mouseleave', () => {
+            const index = object.getAttribute('data-index');
+            document.getElementById(`label_${index}`).style.background = 'rgba(255, 255, 255, 0.8)';
+        });
+    });
+
+    var buttons = document.querySelectorAll('.toggle-visible');
+    buttons.forEach(button => {
+        button.addEventListener('click', function() {
+//            если выделены все, то поменять 'button-visible'
+            const index = button.getAttribute('data-index');
+//            нужно получить id нажатой кнопки и по нему получить id объекта
+            let rect = document.getElementById(`rect_${index}`);
+            let label = document.getElementById(`label_${index}`);
+            if (button.getAttribute('visibility') === 'true') {
+                rect.style.display = 'none';
+                label.style.display = 'none';
+                button.setAttribute('visibility', 'false');
+                button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-slash" viewBox="0 0 16 16">
+                <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z"/>
+                <path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829l.822.822zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829z"/>
+                <path d="M3.35 5.47c-.18.16-.353.322-.518.487A13.134 13.134 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7.029 7.029 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12-.708.708z"/>
+            </svg>`;
+            } else {
+                document.getElementById(`annotationContainer`).style.display = 'flex';
+                rect.style.display = 'flex';
+                label.style.display = 'flex';
+                button.setAttribute('visibility', 'true');
+                button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
+                <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+            </svg>`;
+            }
+
+            let visible_count = 0;
+            buttons.forEach(but => {
+                if (but.getAttribute('visibility') === 'true') {
+                    visible_count++;
+                }
+            });
+
+            if (visible_count === buttons.length) {
+                var bv = document.getElementById('button-visible');
+                bv.innerHTML = `Скрыть все`;
+                bv.setAttribute('visibility', 'true');
+            } else {
+                var bv = document.getElementById('button-visible');
+                bv.innerHTML = `Показать все`;
+                bv.setAttribute('visibility', 'false');
+            }
+        });
+    });
 
     // Добавляем обработчики для чекбоксов с делегированием событий
     domCache.detectedObjects.addEventListener('change', function(e) {
         if (e.target.classList.contains('object-checkbox')) {
             const imageId = e.target.getAttribute('data-image');
             const objIndex = parseInt(e.target.getAttribute('data-index'));
-            detectedObjects[imageId][objIndex].verified = e.target.checked;
+            detectedObjects[imageId]['detections'][objIndex].verified = e.target.checked;
 //            saveToLocalStorage();
         }
     });
@@ -699,7 +701,7 @@ async function analyzeImages() {
             let image = uploadedImages.find(img => img.name === imagePath['original_filename']);
             if (image) {
                 image.analyzed = true;
-                detectedObjects[image.id] = result_detect['results'][i]['detections'];
+                detectedObjects[image.id] = result_detect['results'][i];
             }
         }
     }
@@ -708,6 +710,52 @@ async function analyzeImages() {
     updateImageList();
     if (currentImageIndex >= 0) {
         updateDetectedObjectsList();
+
+        let button = document.createElement('button');
+        button.className = 'btn btn-accent me-2';
+        button.setAttribute('type', 'button');
+        button.setAttribute('visibility', 'true');
+        button.id = 'button-visible';
+        button.innerHTML = `Скрыть все`;
+        button.addEventListener('click', function() {
+            const visibility = button.getAttribute('visibility');
+            if (visibility === 'true') {
+                button.innerHTML = `Показать все`;
+                button.setAttribute('visibility', 'false');
+                document.querySelectorAll('.toggle-visible').forEach(button => {
+                    const index = button.getAttribute('data-index');
+                    let rect = document.getElementById(`rect_${index}`);
+                    let label = document.getElementById(`label_${index}`);
+                    rect.style.display = 'none';
+                    label.style.display = 'none';
+                    button.setAttribute('visibility', 'false');
+                    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-slash" viewBox="0 0 16 16">
+                        <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z"/>
+                        <path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829l.822.822zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829z"/>
+                        <path d="M3.35 5.47c-.18.16-.353.322-.518.487A13.134 13.134 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7.029 7.029 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12-.708.708z"/>
+                    </svg>`;
+                });
+            } else {
+                button.innerHTML = `Скрыть все`;
+                button.setAttribute('visibility', 'true');
+                document.querySelectorAll('.toggle-visible').forEach(button => {
+                    const index = button.getAttribute('data-index');
+                    let rect = document.getElementById(`rect_${index}`);
+                    let label = document.getElementById(`label_${index}`);
+                    document.getElementById(`annotationContainer`).style.display = 'flex';
+                    rect.style.display = 'flex';
+                    label.style.display = 'flex';
+                    button.setAttribute('visibility', 'true');
+                    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
+                        <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                        <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+                    </svg>`;
+                });
+            }
+
+        });
+
+        domCache.detectedObjects.parentNode.insertBefore(button, domCache.detectedObjects);
     }
 
     // Восстанавливаем кнопку
@@ -721,62 +769,77 @@ async function analyzeImages() {
     domCache.analyzeBtn.disabled = false;
     domCache.exportBtn.disabled = false;
     domCache.paramsBtn.disabled = true;
-
-
-    // Имитация анализа с задержкой
-//    setTimeout(() => {
-//        // нужно будет переделать под работу с сервером
-//        // Анализируем каждое изображение
-//        uploadedImages.forEach(image => {
-//            if (!image.analyzed) {
-//                // Генерируем случайные объекты для изображения
-//                const objects = generateRandomObjects();
-//                detectedObjects[image.id] = objects;
-//                image.analyzed = true;
-//            }
-//        });
-//
-//        // Обновляем интерфейс
-//        updateImageList();
-//        if (currentImageIndex >= 0) {
-//            updateDetectedObjectsList();
-//        }
-//
-//        // Восстанавливаем кнопку
-//        analyzeBtn.innerHTML = originalText;
-//        analyzeBtn.disabled = false;
-//
-////        // Сохраняем данные
-////        saveToLocalStorage();
-//
-//        // Показываем уведомление об успехе
-//        showNotification('Анализ завершен!', 'success');
-//
-//        domCache.uploadBtn.disabled = true;
-//        domCache.analyzeBtn.disabled = false;
-//        domCache.exportBtn.disabled = false;
-//        domCache.paramsBtn.disabled = true;
-//
-//    }, 0);
 }
 
-// Генерация случайных объектов для имитации
-function generateRandomObjects() {
-    const themeObjects = objectThemes[settings.objectTheme];
-    const numObjects = Math.floor(Math.random() * 5) + 3; // От 3 до 7 объектов
+async function exportImages() {
+    var requestData = [];
+    Object.keys(detectedObjects).forEach(imageId => {
+        result = {}
+        const objects = detectedObjects[imageId];
 
-    const objects = [];
-    for (let i = 0; i < numObjects; i++) {
-        const randomObj = themeObjects[Math.floor(Math.random() * themeObjects.length)];
-        objects.push({
-            type: randomObj.type,
-            color: randomObj.color,
-            confidence: Math.random() * 0.4 + 0.6, // От 0.6 до 1.0
-            verified: false
+        result['image_path'] = objects['image_path'];
+        result['detections'] = objects['detections'].filter(obj => obj.verified);
+        requestData.push(result);
+    });
+
+    res = {'result': null, 'error': null};
+    try {
+        console.log('requestData', JSON.stringify(requestData));
+        // Отправляем POST запрос на эндпоинт /detect
+        const response = await fetch('server/export/images-detect', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(requestData)
         });
-    }
 
-    return objects;
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `Ошибка сервера: ${response.status}`);
+        }
+
+        // Получаем blob с архивом
+        const blob = await response.blob();
+
+        // Проверяем, что архив не пустой
+        if (blob.size === 0) {
+            throw new Error('Получен пустой архив');
+        }
+
+        // Создаем ссылку для скачивания
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+
+        // Получаем имя файла из заголовков или используем стандартное
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = 'images.zip';
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+            if (filenameMatch) {
+                filename = filenameMatch[1];
+            }
+        }
+        a.download = filename;
+
+        // Добавляем ссылку в DOM и кликаем по ней
+        document.body.appendChild(a);
+        a.click();
+
+        // Очищаем
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        // Показываем успешный статус
+        const filesAdded = response.headers.get('X-Files-Added');
+        const successMessage = filesAdded
+        ? `Архив успешно создан! Добавлено файлов: ${filesAdded}`
+        : 'Архив успешно создан и скачан!';
+
+    } catch (error) {
+        console.error('Сетевая ошибка:', error);
+        res['error'] = 'error network';
+    }
 }
 
 // Экспорт результатов
@@ -793,7 +856,7 @@ function exportResults() {
     let totalObjects = 0;
 
     Object.keys(detectedObjects).forEach(imageId => {
-        const objects = detectedObjects[imageId];
+        const objects = detectedObjects[imageId]['detections'];
         totalObjects += objects.length;
         totalVerified += objects.filter(obj => obj.verified).length;
     });
@@ -803,17 +866,17 @@ function exportResults() {
         <div class="export-item fade-in">
             <span class="badge bg-primary">JSON</span>
             <span>Векторные данные объектов (${totalVerified} проверенных из ${totalObjects})</span>
-            <button class="btn btn-sm btn-outline-primary ms-auto">Скачать</button>
+            <button id="exportJSON" class="btn btn-sm btn-outline-primary ms-auto">Скачать</button>
         </div>
         <div class="export-item fade-in">
             <span class="badge bg-success">ZIP</span>
             <span>Размеченные изображения (${uploadedImages.length} файлов)</span>
-            <button class="btn btn-sm btn-outline-success ms-auto">Скачать</button>
+            <button id="exportImages" class="btn btn-sm btn-outline-success ms-auto">Скачать</button>
         </div>
         <div class="export-item fade-in">
             <span class="badge bg-info">CSV</span>
             <span>Таблица с данными объектов</span>
-            <button class="btn btn-sm btn-outline-info ms-auto">Скачать</button>
+            <button id="exportCSV" class="btn btn-sm btn-outline-info ms-auto">Скачать</button>
         </div>
     `;
 
@@ -823,8 +886,19 @@ function exportResults() {
     // Добавляем обработчики для кнопок скачивания (имитация)
     domCache.exportResults.addEventListener('click', function(e) {
         if (e.target.tagName === 'BUTTON') {
-            const format = e.target.previousElementSibling.previousElementSibling.textContent;
-            showNotification(`Имитация скачивания ${format} файла`, 'info');
+            if (e.target.id === 'exportJSON') {
+                const format = e.target.previousElementSibling.previousElementSibling.textContent;
+                showNotification(`Имитация скачивания ${format} файла`, 'info');
+            } else if (e.target.id === 'exportImages') {
+// надо отправить запрос на сервер, в котором будет содержаться json подтвержденных объектов с путями к изображениям, в ответ получаем архив
+                exportImages();
+            } else if (e.target.id === 'exportCSV') {
+                const format = e.target.previousElementSibling.previousElementSibling.textContent;
+                showNotification(`Имитация скачивания ${format} файла`, 'info');
+            } else {
+                const format = e.target.previousElementSibling.previousElementSibling.textContent;
+                showNotification(`Имитация скачивания ${format} файла`, 'info');
+            }
 
             domCache.uploadBtn.disabled = false;
             domCache.analyzeBtn.disabled = true;
@@ -839,7 +913,7 @@ function saveSettings() {
     settings.detectionLimit = parseFloat(document.getElementById('detectionLimit').value);
     settings.georeference = document.getElementById('georeference').checked;
     settings.pixelSize = parseFloat(document.getElementById('pixelSize').value);
-    settings.objectTheme = document.getElementById('objectTheme').value;
+//    settings.objectTheme = document.getElementById('objectTheme').value;
 
     // Закрываем модальное окно
     const modal = bootstrap.Modal.getInstance(document.getElementById('settingsModal'));

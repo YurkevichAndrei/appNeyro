@@ -1,9 +1,12 @@
+import io
 import os
 import tempfile
 import uuid
+from pathlib import Path
+from zipfile import ZipFile
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Query, Response
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -36,7 +39,7 @@ app.add_middleware(
 gdal.UseExceptions()
 
 # Глобальные переменные для модели
-MODEL_PATH = "models/yolo_rgb_weights_obb.pt"
+MODEL_PATH = "models/yolo_rgb_weights_obb_301025.pt"
 detection_model = None
 
 # Папки для хранения файлов
@@ -286,10 +289,10 @@ async def detect_objects_endpoint(request: DetectionRequest, background_tasks: B
                 None, detect_objects, image_path
             )
 
-            # Нанесение результатов
-            await loop.run_in_executor(
-                None, draw_bounding_boxes, image_path, detections
-            )
+            # # Нанесение результатов
+            # await loop.run_in_executor(
+            #     None, draw_bounding_boxes, image_path, detections
+            # )
 
             # Форматирование в отдельном процессе
             formatted_result = await loop.run_in_executor(
@@ -381,6 +384,91 @@ async def list_annotated_images():
             })
 
     return {"images": images}
+
+@app.post("/export/images-detect")
+async def export_images_detect(request: List[DetectionResult]):
+    """Эндпоинт для разметки и отправки изображений"""
+    # Проверяем, что пути переданы
+    if len(request) == 0:
+        raise HTTPException(status_code=400, detail="No data provided")
+
+    results = []
+    errors = []
+
+    # Создаем executor для фоновых задач
+    loop = asyncio.get_event_loop()
+    for image in request:
+        print(image['image_path'])
+        try:
+            # Нанесение результатов
+            await loop.run_in_executor(
+                None, draw_bounding_boxes, image['image_path'], image['detections']
+            )
+        except FileNotFoundError:
+            errors.append(f"File not found: {image['image_path']}")
+        except Exception as e:
+            errors.append(str(e))
+
+    # Создаем буфер в памяти для ZIP-архива
+    zip_buffer = io.BytesIO()
+
+    # Счетчик успешно добавленных файлов
+    added_files_count = 0
+
+    # Создаем ZIP-архив и добавляем файлы
+    with ZipFile(zip_buffer, "w") as zip_file:
+        for image in request:
+            file_path = os.path.join(ANNOTATED_DIR, os.path.basename(image['image_path']))
+            try:
+                # Проверяем существование файла
+                if not os.path.exists(file_path):
+                    continue
+
+                # Проверяем, что это файл, а не директория
+                if not os.path.isfile(file_path):
+                    continue
+
+                # Проверяем, что файл является изображением (по расширению)
+                image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp'}
+                file_extension = Path(file_path).suffix.lower()
+                if file_extension not in image_extensions:
+                    continue
+
+                # Читаем содержимое файла
+                with open(file_path, "rb") as f:
+                    file_contents = f.read()
+
+                # Получаем только имя файла (без пути)
+                filename = os.path.basename(file_path)
+
+                # Добавляем файл в архив
+                zip_file.writestr(filename, file_contents)
+                added_files_count += 1
+
+            except Exception as e:
+                # Логируем ошибку, но продолжаем обработку других файлов
+                print(f"Error processing file {file_path}: {str(e)}")
+                continue
+
+    # Проверяем, что хотя бы один файл был добавлен
+    if added_files_count == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="No valid image files found from the provided paths"
+        )
+
+    # Перемещаем указатель в начало буфера
+    zip_buffer.seek(0)
+
+    # Возвращаем архив как потоковый ответ
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": "attachment; filename=images.zip",
+            "X-Files-Added": str(added_files_count)
+        }
+    )
 
 # Эндпоинт для проверки здоровья сервера
 @app.get("/health")

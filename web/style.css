@@ -1,7 +1,7 @@
 :root {
-    --primary: #ffeb2cc7;
+    --primary: #0c105599;
     --primary-dark: #0000001a;
-    --secondary: #1e0445c7;
+    --secondary: #1d3083c7;
     --accent: #2f46aec7;
     --success: #3a56d4c7;
     --warning: #f8961ec7;
@@ -75,7 +75,7 @@ body {
 }
 
 .btn-accent:hover {
-    background-color: #7209b7c7;
+    background-color: var(--secondary);
     border-color: white;
     color: white;
 }
@@ -435,7 +435,7 @@ body {
 }
 
 .rectangle {
-    border: 2px solid var(--danger);
+    border: 1px solid var(--danger);
     background: transparent;
 }
 
@@ -459,6 +459,26 @@ body {
     left: 0;
     pointer-events: none; /* Чтобы клики проходили сквозь overlay */
     background: rgba(255, 0, 0, 0.3); /* Для визуализации (можно убрать) */
+}
+
+.toggle-visible {
+    font-size: 0.8rem;
+    color: var(--gray);
+    margin-left: auto;
+    background-color: white;
+    border-radius: 12px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#button-visible {
+    margin: 0 0 8px 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100% !important;
 }
 
 /* Адаптивность */
