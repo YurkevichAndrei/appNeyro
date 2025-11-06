@@ -111,7 +111,7 @@ def detect_objects(image_path: str) -> List[dict]:
                 "type": obj.category.name,
                 "bbox": [int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])], # x y w h
                 "confidence": float(obj.score.value),
-                "verified": False
+                "verified": None
             })
 
         return detections
@@ -397,15 +397,16 @@ async def export_images_detect(request: List[DetectionResult]):
 
     # Создаем executor для фоновых задач
     loop = asyncio.get_event_loop()
+    print(request)
     for image in request:
-        print(image['image_path'])
+        print(image.image_path)
         try:
             # Нанесение результатов
             await loop.run_in_executor(
-                None, draw_bounding_boxes, image['image_path'], image['detections']
+                None, draw_bounding_boxes, image.image_path, image.detections
             )
         except FileNotFoundError:
-            errors.append(f"File not found: {image['image_path']}")
+            errors.append(f"File not found: {image.image_path}")
         except Exception as e:
             errors.append(str(e))
 
@@ -418,7 +419,7 @@ async def export_images_detect(request: List[DetectionResult]):
     # Создаем ZIP-архив и добавляем файлы
     with ZipFile(zip_buffer, "w") as zip_file:
         for image in request:
-            file_path = os.path.join(ANNOTATED_DIR, os.path.basename(image['image_path']))
+            file_path = os.path.join(ANNOTATED_DIR, os.path.basename(image.image_path))
             try:
                 # Проверяем существование файла
                 if not os.path.exists(file_path):

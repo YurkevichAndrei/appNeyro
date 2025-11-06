@@ -23,10 +23,6 @@ body {
     line-height: 1.6;
 }
 
-/*body .container-fluid{*/
-/*    min-height: 100vh;*/
-/*}*/
-
 /* Кастомная навигационная панель */
 .custom-navbar {
 /*    background: linear-gradient(135deg, var(--primary) 0%, var(--warning) 33%, var(--danger) 50%, var(--color) 75%, var(--secondary) 100%);*/
@@ -474,11 +470,15 @@ body {
 }
 
 #button-visible {
-    margin: 0 0 8px 0 !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100% !important;
+    margin: 0 0 8px auto !important;
+    display: block;
+/*    width: 100% !important;*/
+}
+
+#button-confirm {
+    margin: 0 !important;
+    padding: 8px 0 !important;
+    width: 100%;
 }
 
 /* Адаптивность */

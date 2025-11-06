@@ -72,6 +72,16 @@ function initializeUI() {
         domCache.detectionLimitValue.textContent = this.value;
     });
 
+    // Добавляем обработчики клика на миниатюры с делегированием событий
+    domCache.imageList.addEventListener('click', function(e) {
+        const thumbnail = e.target.closest('.image-item');
+        if (thumbnail) {
+            console.log('click image list');
+            const index = parseInt(thumbnail.getAttribute('data-index'));
+            selectImage(index);
+        }
+    });
+
     domCache.analyzeBtn.disabled = true;
     domCache.exportBtn.disabled = true;
     domCache.paramsBtn.disabled = true;
@@ -236,7 +246,7 @@ async function handleFileUpload(event) {
                         id: Date.now() + i + Math.random(),
                         name: file.name,
                         url: url,
-                        analyzed: false,
+                        analyzed: null,
                         path: filePath,
                         size: file.size,
                         type: file.type,
@@ -259,7 +269,7 @@ async function handleFileUpload(event) {
                                 id: Date.now() + i + Math.random(),
                                 name: file.name,
                                 url: e.target.result,
-                                analyzed: false,
+                                analyzed: null,
                                 path: filePath,
                                 size: file.size,
                                 type: file.type,
@@ -464,21 +474,27 @@ function updateImageList() {
     container.className = 'd-flex flex-wrap image-list-container';
 
     uploadedImages.forEach((image, index) => {
-        const badgeClass = image.analyzed ? 'bg-success' : 'bg-secondary';
-        const badgeIcon = image.analyzed ? '✓' : '?';
+        let badge = '';
+        console.log(image);
+        if (image.analyzed !== null) {
+            const badgeClass = image.analyzed ? 'bg-success' : 'bg-secondary';
+            const badgeIcon = image.analyzed ? '✓' : '?';
+            badge = `<div class="thumbnail-badge ${badgeClass}">${badgeIcon}</div>`;
+        }
+
 
         // Создаем контейнер для каждого изображения с названием
         const imageItem = document.createElement('div');
-        imageItem.className = `image-item ${index === currentImageIndex ? 'active' : ''}`;
+//        imageItem.className = `image-item ${index === currentImageIndex ? 'active' : ''}`;
+        imageItem.className = `image-item`;
         imageItem.setAttribute('data-index', index);
 
-        console.log(image);
         // Формируем содержимое с названием изображения
         imageItem.innerHTML = `
             <div class="image-title" title="${image.name}">${image.name}</div>
             <div class="image-thumbnail fade-in">
                 <img src="${image.url}" alt="${image.name}" loading="lazy">
-                <div class="thumbnail-badge ${badgeClass}">${badgeIcon}</div>
+                ${badge}
             </div>
         `;
 
@@ -490,15 +506,6 @@ function updateImageList() {
     // Очищаем и добавляем новые элементы
     domCache.imageList.innerHTML = '';
     domCache.imageList.appendChild(fragment);
-
-    // Добавляем обработчики клика на миниатюры с делегированием событий
-    domCache.imageList.addEventListener('click', function(e) {
-        const thumbnail = e.target.closest('.image-item');
-        if (thumbnail) {
-            const index = parseInt(thumbnail.getAttribute('data-index'));
-            selectImage(index);
-        }
-    });
 }
 
 // Выбор изображения для просмотра (оптимизированная версия)
@@ -700,7 +707,7 @@ async function analyzeImages() {
             const imagePath = images.find(img => img.uploaded_path === result_detect['results'][i]['image_path']);
             let image = uploadedImages.find(img => img.name === imagePath['original_filename']);
             if (image) {
-                image.analyzed = true;
+                image.analyzed = false;
                 detectedObjects[image.id] = result_detect['results'][i];
             }
         }
@@ -711,51 +718,62 @@ async function analyzeImages() {
     if (currentImageIndex >= 0) {
         updateDetectedObjectsList();
 
-        let button = document.createElement('button');
-        button.className = 'btn btn-accent me-2';
-        button.setAttribute('type', 'button');
-        button.setAttribute('visibility', 'true');
-        button.id = 'button-visible';
-        button.innerHTML = `Скрыть все`;
-        button.addEventListener('click', function() {
-            const visibility = button.getAttribute('visibility');
-            if (visibility === 'true') {
-                button.innerHTML = `Показать все`;
-                button.setAttribute('visibility', 'false');
-                document.querySelectorAll('.toggle-visible').forEach(button => {
-                    const index = button.getAttribute('data-index');
-                    let rect = document.getElementById(`rect_${index}`);
-                    let label = document.getElementById(`label_${index}`);
-                    rect.style.display = 'none';
-                    label.style.display = 'none';
+        if (!(document.getElementById('button-visible'))) {
+            let button = document.createElement('button');
+            button.className = 'btn btn-accent me-2';
+            button.setAttribute('type', 'button');
+            button.setAttribute('visibility', 'true');
+            button.id = 'button-visible';
+            button.innerHTML = `Скрыть все`;
+            button.addEventListener('click', function() {
+                const visibility = button.getAttribute('visibility');
+                if (visibility === 'true') {
+                    button.innerHTML = `Показать все`;
                     button.setAttribute('visibility', 'false');
-                    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-slash" viewBox="0 0 16 16">
-                        <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z"/>
-                        <path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829l.822.822zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829z"/>
-                        <path d="M3.35 5.47c-.18.16-.353.322-.518.487A13.134 13.134 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7.029 7.029 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12-.708.708z"/>
-                    </svg>`;
-                });
-            } else {
-                button.innerHTML = `Скрыть все`;
-                button.setAttribute('visibility', 'true');
-                document.querySelectorAll('.toggle-visible').forEach(button => {
-                    const index = button.getAttribute('data-index');
-                    let rect = document.getElementById(`rect_${index}`);
-                    let label = document.getElementById(`label_${index}`);
-                    document.getElementById(`annotationContainer`).style.display = 'flex';
-                    rect.style.display = 'flex';
-                    label.style.display = 'flex';
+                    document.querySelectorAll('.toggle-visible').forEach(button => {
+                        const index = button.getAttribute('data-index');
+                        let rect = document.getElementById(`rect_${index}`);
+                        let label = document.getElementById(`label_${index}`);
+                        rect.style.display = 'none';
+                        label.style.display = 'none';
+                        button.setAttribute('visibility', 'false');
+                        button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-slash" viewBox="0 0 16 16">
+                            <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z"/>
+                            <path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829l.822.822zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829z"/>
+                            <path d="M3.35 5.47c-.18.16-.353.322-.518.487A13.134 13.134 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7.029 7.029 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12-.708.708z"/>
+                        </svg>`;
+                    });
+                } else {
+                    button.innerHTML = `Скрыть все`;
                     button.setAttribute('visibility', 'true');
-                    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
-                        <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
-                        <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
-                    </svg>`;
-                });
-            }
+                    document.querySelectorAll('.toggle-visible').forEach(button => {
+                        const index = button.getAttribute('data-index');
+                        let rect = document.getElementById(`rect_${index}`);
+                        let label = document.getElementById(`label_${index}`);
+                        document.getElementById(`annotationContainer`).style.display = 'flex';
+                        rect.style.display = 'flex';
+                        label.style.display = 'flex';
+                        button.setAttribute('visibility', 'true');
+                        button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
+                            <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                            <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+                        </svg>`;
+                    });
+                }
 
-        });
+            });
+            domCache.detectedObjects.parentNode.insertBefore(button, domCache.detectedObjects);
+        }
 
-        domCache.detectedObjects.parentNode.insertBefore(button, domCache.detectedObjects);
+        if (!(document.getElementById('button-confirm'))) {
+            let button = document.createElement('button');
+            button.className = 'btn btn-accent me-2';
+            button.setAttribute('type', 'button');
+            button.id = 'button-confirm';
+            button.innerHTML = `ОК`;
+            button.addEventListener('click', function() {});
+            domCache.detectedObjects.parentNode.after(domCache.detectedObjects, button);
+        }
     }
 
     // Восстанавливаем кнопку
@@ -840,6 +858,11 @@ async function exportImages() {
         console.error('Сетевая ошибка:', error);
         res['error'] = 'error network';
     }
+
+    domCache.uploadBtn.disabled = false;
+    domCache.analyzeBtn.disabled = true;
+    domCache.exportBtn.disabled = false;
+    domCache.paramsBtn.disabled = true;
 }
 
 // Экспорт результатов
@@ -883,29 +906,10 @@ function exportResults() {
     html += '</div>';
     domCache.exportResults.innerHTML = html;
 
-    // Добавляем обработчики для кнопок скачивания (имитация)
-    domCache.exportResults.addEventListener('click', function(e) {
-        if (e.target.tagName === 'BUTTON') {
-            if (e.target.id === 'exportJSON') {
-                const format = e.target.previousElementSibling.previousElementSibling.textContent;
-                showNotification(`Имитация скачивания ${format} файла`, 'info');
-            } else if (e.target.id === 'exportImages') {
-// надо отправить запрос на сервер, в котором будет содержаться json подтвержденных объектов с путями к изображениям, в ответ получаем архив
-                exportImages();
-            } else if (e.target.id === 'exportCSV') {
-                const format = e.target.previousElementSibling.previousElementSibling.textContent;
-                showNotification(`Имитация скачивания ${format} файла`, 'info');
-            } else {
-                const format = e.target.previousElementSibling.previousElementSibling.textContent;
-                showNotification(`Имитация скачивания ${format} файла`, 'info');
-            }
-
-            domCache.uploadBtn.disabled = false;
-            domCache.analyzeBtn.disabled = true;
-            domCache.exportBtn.disabled = false;
-            domCache.paramsBtn.disabled = true;
-        }
-    });
+    // Назначаем обработчики напрямую через onclick
+//    document.getElementById('exportJSON').onclick = handleExportJSON;
+    document.getElementById('exportImages').onclick = exportImages;
+//    document.getElementById('exportCSV').onclick = handleExportCSV;
 }
 
 // Сохранение настроек
