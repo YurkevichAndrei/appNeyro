@@ -537,11 +537,14 @@ function selectImage(index) {
     updateDetectedObjectsList();
 
     // Обновляем активный класс в списке изображений (быстрый способ)
-    const thumbnails = domCache.imageList.querySelectorAll('.image-thumbnail');
-    thumbnails.forEach((thumb, i) => {
+    const items = domCache.imageList.querySelectorAll('.image-item');
+    items.forEach((item, i) => {
+        var thumb = item.querySelector('.image-thumbnail');
         if (i === index) {
+            item.classList.add('active');
             thumb.classList.add('active');
         } else {
+            item.classList.remove('active');
             thumb.classList.remove('active');
         }
     });
@@ -658,6 +661,14 @@ function updateDetectedObjectsList() {
             const imageId = e.target.getAttribute('data-image');
             const objIndex = parseInt(e.target.getAttribute('data-index'));
             detectedObjects[imageId]['detections'][objIndex].verified = e.target.checked;
+
+            var image = domCache.imageList.querySelector('.image-item.active');
+            const data_index = image.getAttribute('data-index');
+            uploadedImages[data_index].analyzed = false;
+            var badge = image.querySelector('.thumbnail-badge');
+            badge.classList.replace('bg-success', 'bg-secondary');
+            badge.classList.replace('bg-danger', 'bg-secondary');
+            badge.innerText = '?';
 //            saveToLocalStorage();
         }
     });
@@ -771,7 +782,27 @@ async function analyzeImages() {
             button.setAttribute('type', 'button');
             button.id = 'button-confirm';
             button.innerHTML = `ОК`;
-            button.addEventListener('click', function() {});
+            button.addEventListener('click', function() {
+                var detectObjects = domCache.detectedObjects.children;
+                const imageId = detectObjects[0].children[0].getAttribute('data-image');
+                let verifiedObjects = 0;
+                detectedObjects[imageId]['detections'].forEach(obj => {
+                    if (obj.verified) {
+                        verifiedObjects++;
+                    }
+                });
+                var image = domCache.imageList.querySelector('.image-item.active');
+                const data_index = image.getAttribute('data-index');
+                uploadedImages[data_index].analyzed = true;
+                var badge = image.querySelector('.thumbnail-badge');
+                if (detectObjects.length === 0 || verifiedObjects === 0) {
+                    badge.classList.replace('bg-secondary', 'bg-danger');
+                    badge.innerText = '✕';
+                } else {
+                    badge.classList.replace('bg-secondary', 'bg-success');
+                    badge.innerText = '✓';
+                }
+            });
             domCache.detectedObjects.parentNode.after(domCache.detectedObjects, button);
         }
     }
