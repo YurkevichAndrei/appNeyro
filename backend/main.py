@@ -18,6 +18,36 @@ from sahi import AutoDetectionModel
 import torch
 from PIL import Image, ImageDraw, ImageFont
 
+
+# Модели данных
+class DetectionRequest(BaseModel):
+    image_paths: List[str]
+
+
+class DetectionSettingsRequest(BaseModel):
+    settings: dict
+
+
+class DetectionResult(BaseModel):
+    image_path: str
+    detections: List[dict]
+
+
+class DetectionResponse(BaseModel):
+    results: List[DetectionResult]
+    errors: Optional[List[str]] = None
+
+
+class UploadResponse(BaseModel):
+    results: List[dict]
+    errors: Optional[List[str]] = None
+
+
+class ImageMetadata(BaseModel):
+    image_path: str
+    filename: str
+
+
 # Инициализация FastAPI приложения
 app = FastAPI(title="Object Detection API")
 
@@ -50,41 +80,36 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(ANNOTATED_DIR, exist_ok=True)
 print(f"Data directory: {data_dir}")
 
-# Модели данных
-class DetectionRequest(BaseModel):
-    image_paths: List[str]
-
-class DetectionResult(BaseModel):
-    image_path: str
-    detections: List[dict]
-
-class DetectionResponse(BaseModel):
-    results: List[DetectionResult]
-    errors: Optional[List[str]] = None
-
-class UploadResponse(BaseModel):
-    results: List[dict]
-    errors: Optional[List[str]] = None
-
-class ImageMetadata(BaseModel):
-    image_path: str
-    filename: str
+detect_settings = DetectionSettingsRequest(settings={
+    "model_type": "visible",
+    "confidence_threshold": 0.5,
+    "slice_size": 512,
+    "overlap_ratio": 0.3,
+    "georeference": False,
+    "pixelSize": 5.0
+})
 
 # Инициализация модели при запуске
 @app.on_event("startup")
 async def startup_event():
+    load_model()
+
+
+# Функция для загрузки модели
+def load_model():
     global detection_model
     try:
         detection_model = AutoDetectionModel.from_pretrained(
             model_type="ultralytics",
             model_path=MODEL_PATH,
-            confidence_threshold=0.5,
+            confidence_threshold=detect_settings.settings["confidence_threshold"],
             device="cuda:0" if torch.cuda.is_available() else "cpu"
         )
         print(f"Model loaded successfully on device: {detection_model.device}")
     except Exception as e:
         print(f"Error loading model: {e}")
         raise
+
 
 # Функция для детекции на одном изображении
 def detect_objects(image_path: str) -> List[dict]:
@@ -118,6 +143,7 @@ def detect_objects(image_path: str) -> List[dict]:
 
     except Exception as e:
         raise Exception(f"Detection failed for {image_path}: {str(e)}")
+
 
 # Функция для рисования bounding boxes
 def draw_bounding_boxes(image_path: str, detections: List[dict]):
@@ -158,6 +184,7 @@ def draw_bounding_boxes(image_path: str, detections: List[dict]):
     except Exception as e:
         raise Exception(f"Failed to draw bounding boxes: {str(e)}")
 
+
 # Функция для обработки в отдельном процессе
 def process_detection_formatting(image_path: str, detections: List[dict]) -> dict:
     """Форматирует результаты детекции для JSON ответа"""
@@ -165,6 +192,7 @@ def process_detection_formatting(image_path: str, detections: List[dict]) -> dic
         "image_path": image_path,
         "detections": detections
     }
+
 
 def create_world_file(png_path: str, geotransform: tuple):
     """Создает мировой файл (.pgw) для PNG"""
@@ -179,6 +207,7 @@ def create_world_file(png_path: str, geotransform: tuple):
             f.write(f"{geotransform[5]}\n")   # Pixel height (y-scale, negative)
             f.write(f"{geotransform[0] + geotransform[1] * 0.5}\n")  # X-coordinate of center
             f.write(f"{geotransform[3] + geotransform[5] * 0.5}\n")  # Y-coordinate of center
+
 
 @app.post("/convert/tiff-to-png")
 async def convert_tiff_to_png(
@@ -271,6 +300,7 @@ async def convert_tiff_to_png(
             detail=f"Ошибка при конвертации: {str(e)}"
         )
 
+
 # Оригинальный эндпоинт для детекции по путям
 @app.post("/detect", response_model=DetectionResponse)
 async def detect_objects_endpoint(request: DetectionRequest, background_tasks: BackgroundTasks):
@@ -307,6 +337,7 @@ async def detect_objects_endpoint(request: DetectionRequest, background_tasks: B
             errors.append(str(e))
 
     return DetectionResponse(results=results, errors=errors if errors else None)
+
 
 # Новый эндпоинт для загрузки изображений
 @app.post("/upload-images", response_model=UploadResponse)
@@ -355,6 +386,7 @@ async def upload_images(files: List[UploadFile] = File(...)):
 
     return UploadResponse(results=results, errors=errors if errors else None)
 
+
 # Эндпоинт для получения размеченных изображений
 @app.get("/annotated-images/{image_name}")
 async def get_annotated_image(image_name: str):
@@ -370,6 +402,7 @@ async def get_annotated_image(image_name: str):
         filename=image_name
     )
 
+
 # Эндпоинт для получения списка всех размеченных изображений
 @app.get("/annotated-images")
 async def list_annotated_images():
@@ -384,6 +417,7 @@ async def list_annotated_images():
             })
 
     return {"images": images}
+
 
 @app.post("/export/images-detect")
 async def export_images_detect(request: List[DetectionResult]):
@@ -470,6 +504,16 @@ async def export_images_detect(request: List[DetectionResult]):
             "X-Files-Added": str(added_files_count)
         }
     )
+
+
+@app.post("/detect/settings")
+async def update_detect_settings(request: DetectionSettingsRequest):
+    print(request.settings)
+    detect_settings.settings['confidence_threshold'] = float(request.settings['detectionLimit'])
+    detect_settings.settings['georeference'] = bool(request.settings['georeference'])
+    detect_settings.settings['pixel_size'] = float(request.settings['pixelSize'])
+    load_model()
+
 
 # Эндпоинт для проверки здоровья сервера
 @app.get("/health")

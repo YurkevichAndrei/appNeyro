@@ -4,9 +4,8 @@ let currentImageIndex = -1;
 let detectedObjects = {};
 let settings = {
     detectionLimit: 0.5,
-    georeference: true,
-    pixelSize: 5.0,
-    objectTheme: 'animals'
+    georeference: false,
+    pixelSize: 5.0
 };
 
 // Кэш для DOM элементов
@@ -70,6 +69,16 @@ function initializeUI() {
     // Обработчик для ползунка предела распознавания
     domCache.detectionLimit.addEventListener('input', function() {
         domCache.detectionLimitValue.textContent = this.value;
+    });
+
+    domCache.detectionLimitValue.textContent = domCache.detectionLimit.value;
+
+    document.getElementById('georeference').addEventListener('change', function() {
+        if (this.checked) {
+            document.getElementById('pixelSize').disabled = false;
+        } else {
+            document.getElementById('pixelSize').disabled = true;
+        }
     });
 
     // Добавляем обработчики клика на миниатюры с делегированием событий
@@ -553,6 +562,7 @@ function selectImage(index) {
 // Обновление списка распознанных объектов
 function updateDetectedObjectsList() {
     viewer.resetView();
+    if (currentImageIndex === -1) return;
     const imageId = uploadedImages[currentImageIndex].id;
     console.log('imageId', imageId);
     if (!detectedObjects[imageId] || detectedObjects[imageId]['detections'].length === 0) {
@@ -944,11 +954,26 @@ function exportResults() {
 }
 
 // Сохранение настроек
-function saveSettings() {
+async function saveSettings() {
     settings.detectionLimit = parseFloat(document.getElementById('detectionLimit').value);
     settings.georeference = document.getElementById('georeference').checked;
     settings.pixelSize = parseFloat(document.getElementById('pixelSize').value);
-//    settings.objectTheme = document.getElementById('objectTheme').value;
+
+    // Формируем данные для отправки
+    let requestData = {
+        'settings': settings
+    };
+    // Отправляем POST запрос на эндпоинт /detect/settings
+    const response = await fetch('server/detect/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(requestData)
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `Ошибка сервера: ${response.status}`);
+    }
 
     // Закрываем модальное окно
     const modal = bootstrap.Modal.getInstance(document.getElementById('settingsModal'));
