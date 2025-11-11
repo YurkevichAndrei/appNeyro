@@ -2,8 +2,13 @@ import io
 import os
 import tempfile
 import uuid
+from datetime import datetime
+from fileinput import filename
 from pathlib import Path
 from zipfile import ZipFile
+from openpyxl import Workbook
+from openpyxl.styles import Alignment
+from osgeo import gdal
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Query, Response
 from fastapi.responses import FileResponse, StreamingResponse
@@ -11,7 +16,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 import asyncio
-from osgeo import gdal
 
 from sahi.predict import get_sliced_prediction
 from sahi import AutoDetectionModel
@@ -89,6 +93,8 @@ detect_settings = DetectionSettingsRequest(settings={
     "pixelSize": 5.0
 })
 
+uploaded_files = {}
+
 # Инициализация модели при запуске
 @app.on_event("startup")
 async def startup_event():
@@ -122,10 +128,14 @@ def detect_objects(image_path: str) -> List[dict]:
         result = get_sliced_prediction(
             image_path,
             detection_model,
-            slice_height=512,
-            slice_width=512,
-            overlap_height_ratio=0.3,
-            overlap_width_ratio=0.3,
+            # slice_height=512,
+            slice_height=detect_settings.settings["slice_size"],
+            # slice_width=512,
+            slice_width=detect_settings.settings["slice_size"],
+            # overlap_height_ratio=0.3,
+            overlap_height_ratio=detect_settings.settings['overlap_ratio'],
+            # overlap_width_ratio=0.3,
+            overlap_width_ratio=detect_settings.settings['overlap_ratio'],
         )
 
         # Форматируем результаты
@@ -168,7 +178,7 @@ def draw_bounding_boxes(image_path: str, detections: List[dict]):
             color = 'red'
 
             # Рисуем прямоугольник
-            draw.rectangle([x, y, x + w, y + h], outline=color, width=3)
+            draw.rectangle([x, y, x + w, y + h], outline=color, width=2)
 
             # Добавляем подпись
             label = f"{detection['type']} {detection['confidence']:.2f}"
@@ -239,6 +249,8 @@ async def convert_tiff_to_png(
     with open(upload_path, "wb") as buffer:
         content = await file.read()
         buffer.write(content)
+
+    uploaded_files[upload_path] = file.filename
 
     temp_dir = tempfile.mkdtemp()
     try:
@@ -379,6 +391,7 @@ async def upload_images(files: List[UploadFile] = File(...)):
                 "uploaded_path": upload_path,
             }
 
+            uploaded_files[upload_path] = file.filename
             results.append(formatted_result)
 
         except Exception as e:
@@ -506,10 +519,90 @@ async def export_images_detect(request: List[DetectionResult]):
     )
 
 
+@app.post("/export/xlsx-data-detect")
+async def export_xlsx_data_detect(request: List[DetectionResult]):
+    """Эндпоинт для разметки и отправки изображений"""
+        # Проверяем, что пути переданы
+    if len(request) == 0:
+        raise HTTPException(status_code=400, detail="No data provided")
+
+    # Создаем директорию, если она не существует
+    path_data = os.path.join(data_dir, 'csv')
+    if not os.path.exists(path_data):
+        os.makedirs(path_data)
+
+    file_name = f'detection_report_{datetime.now().strftime('%d-%m-%Y_%H:%M')}.xlsx'
+    filepath = os.path.join(path_data, file_name)
+
+    # Создаем новую книгу Excel
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Detection'
+
+    dict_list = []
+    for detection in request:
+        for detect_object in detection.detections:
+            detect = {'Изображение': uploaded_files[detection.image_path]}
+            detect['Объект'] = detect_object['type']
+            detect['Вероятность'] = round(float(detect_object['confidence']), 2)
+            detect['Координаты'] = str(detect_object['bbox'])
+            dict_list.append(detect)
+
+    # Записываем данные из списка словарей в Excel
+    if dict_list:
+        header = list(dict_list[0].keys())
+        ws.append(header)  # Записываем заголовки
+
+        for row in dict_list:
+            ws.append([row[col] for col in header])
+
+        # Объединяем ячейки с одинаковыми названиями изображений
+        current_image = None
+        start_row = 2  # Начинаем с первой строки данных (после заголовка)
+
+        for row_num, row in enumerate(ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=1), start=2):
+            cell_value = row[0].value
+
+            if cell_value != current_image:
+                # Если значение изменилось, объединяем предыдущую группу
+                if current_image is not None and (row_num - 1 > start_row):
+                    ws.merge_cells(start_row=start_row, start_column=1, end_row=row_num-1, end_column=1)
+                    # Центрируем текст в объединенной ячейке
+                    ws.cell(row=start_row, column=1).alignment = Alignment(horizontal='center', vertical='center')
+
+                current_image = cell_value
+                start_row = row_num
+
+        # Объединяем последнюю группу
+        if current_image is not None and (ws.max_row >= start_row):
+            ws.merge_cells(start_row=start_row, start_column=1, end_row=ws.max_row, end_column=1)
+            ws.cell(row=start_row, column=1).alignment = Alignment(horizontal='center', vertical='center')
+
+    # Автоматическое изменение ширины столбцов
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(cell.value)
+            except:
+                pass
+        adjusted_width = (max_length + 2)
+        ws.column_dimensions[column].width = adjusted_width
+
+    # Сохраняем файл
+    wb.save(filepath)
+
+    return FileResponse(path=filepath, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', headers={'Filename': file_name})
+
+
 @app.post("/detect/settings")
 async def update_detect_settings(request: DetectionSettingsRequest):
     print(request.settings)
     detect_settings.settings['confidence_threshold'] = float(request.settings['detectionLimit'])
+    detect_settings.settings['slice_size'] = int(request.settings['detectionSlice'])
+    detect_settings.settings['overlap_ratio'] = float(request.settings['detectionOverlap'])
     detect_settings.settings['georeference'] = bool(request.settings['georeference'])
     detect_settings.settings['pixel_size'] = float(request.settings['pixelSize'])
     load_model()

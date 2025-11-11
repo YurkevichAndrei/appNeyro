@@ -41,6 +41,10 @@ function initializeDomCache() {
         settingsForm: document.getElementById('settingsForm'),
         detectionLimit: document.getElementById('detectionLimit'),
         detectionLimitValue: document.getElementById('detectionLimitValue'),
+        detectionSlice: document.getElementById('detectionSlice'),
+        detectionSliceValue: document.getElementById('detectionSliceValue'),
+        detectionOverlap: document.getElementById('detectionOverlap'),
+        detectionOverlapValue: document.getElementById('detectionOverlapValue'),
         imagePreview: document.getElementById('imagePreview'),
 //        currentImageName: document.getElementById('currentImageName'),
         detectedObjects: document.getElementById('detectedObjects'),
@@ -69,6 +73,12 @@ function initializeUI() {
     // Обработчик для ползунка предела распознавания
     domCache.detectionLimit.addEventListener('input', function() {
         domCache.detectionLimitValue.textContent = this.value;
+    });
+    domCache.detectionSlice.addEventListener('input', function() {
+        domCache.detectionSliceValue.textContent = this.value;
+    });
+    domCache.detectionOverlap.addEventListener('input', function() {
+        domCache.detectionOverlapValue.textContent = this.value;
     });
 
     domCache.detectionLimitValue.textContent = domCache.detectionLimit.value;
@@ -494,8 +504,8 @@ function updateImageList() {
 
         // Создаем контейнер для каждого изображения с названием
         const imageItem = document.createElement('div');
-//        imageItem.className = `image-item ${index === currentImageIndex ? 'active' : ''}`;
-        imageItem.className = `image-item`;
+        imageItem.className = `image-item ${index === currentImageIndex ? 'active' : ''}`;
+//        imageItem.className = `image-item`;
         imageItem.setAttribute('data-index', index);
 
         // Формируем содержимое с названием изображения
@@ -900,7 +910,87 @@ async function exportImages() {
         res['error'] = 'error network';
     }
 
-    domCache.uploadBtn.disabled = false;
+    domCache.uploadBtn.disabled = true;
+    domCache.analyzeBtn.disabled = true;
+    domCache.exportBtn.disabled = false;
+    domCache.paramsBtn.disabled = true;
+}
+
+
+async function exportXLSX() {
+    var requestData = [];
+    Object.keys(detectedObjects).forEach(imageId => {
+        result = {}
+        const objects = detectedObjects[imageId];
+
+        result['image_path'] = objects['image_path'];
+        result['detections'] = objects['detections'].filter(obj => obj.verified);
+        requestData.push(result);
+    });
+
+    res = {'result': null, 'error': null};
+    try {
+        console.log('requestData', JSON.stringify(requestData));
+        // Отправляем POST запрос на эндпоинт /detect
+        const response = await fetch('server/export/xlsx-data-detect', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `Ошибка сервера: ${response.status}`);
+        }
+
+        // Получаем blob с архивом
+        const blob = await response.blob();
+
+        // Проверяем, что архив не пустой
+        if (blob.size === 0) {
+            throw new Error('Получен пустой файл');
+        }
+
+        // Создаем ссылку для скачивания
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+
+        // Получаем имя файла из заголовков или используем стандартное
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = 'detection_report.xlsx';
+        if (response.headers.get('Filename')) {
+            filename = response.headers.get('Filename');
+        }
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+            if (filenameMatch) {
+                filename = filenameMatch[1];
+            }
+        }
+        a.download = filename;
+
+        // Добавляем ссылку в DOM и кликаем по ней
+        document.body.appendChild(a);
+        a.click();
+
+        // Очищаем
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        // Показываем успешный статус
+        const filesAdded = response.headers.get('X-Files-Added');
+        const successMessage = filesAdded
+        ? `Архив успешно создан! Добавлено файлов: ${filesAdded}`
+        : 'Архив успешно создан и скачан!';
+
+    } catch (error) {
+        console.error('Сетевая ошибка:', error);
+        res['error'] = 'error network';
+    }
+
+    domCache.uploadBtn.disabled = true;
     domCache.analyzeBtn.disabled = true;
     domCache.exportBtn.disabled = false;
     domCache.paramsBtn.disabled = true;
@@ -938,7 +1028,7 @@ function exportResults() {
             <button id="exportImages" class="btn btn-sm btn-outline-success ms-auto">Скачать</button>
         </div>
         <div class="export-item fade-in">
-            <span class="badge bg-info">CSV</span>
+            <span class="badge bg-info">XLSX</span>
             <span>Таблица с данными объектов</span>
             <button id="exportCSV" class="btn btn-sm btn-outline-info ms-auto">Скачать</button>
         </div>
@@ -950,12 +1040,14 @@ function exportResults() {
     // Назначаем обработчики напрямую через onclick
 //    document.getElementById('exportJSON').onclick = handleExportJSON;
     document.getElementById('exportImages').onclick = exportImages;
-//    document.getElementById('exportCSV').onclick = handleExportCSV;
+    document.getElementById('exportCSV').onclick = exportXLSX;
 }
 
 // Сохранение настроек
 async function saveSettings() {
     settings.detectionLimit = parseFloat(document.getElementById('detectionLimit').value);
+    settings.detectionSlice = parseInt(document.getElementById('detectionSlice').value, 10);
+    settings.detectionOverlap = parseFloat(document.getElementById('detectionOverlap').value);
     settings.georeference = document.getElementById('georeference').checked;
     settings.pixelSize = parseFloat(document.getElementById('pixelSize').value);
 
