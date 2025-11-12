@@ -282,6 +282,7 @@ body {
 /* Распознанные объекты */
 .detected-objects {
     min-height: var(--row-min-height);
+    height: var(--row-min-height);
     overflow-y: auto;
     align-items: auto;
 }
@@ -429,14 +430,15 @@ body {
 }
 
 .annotation {
-    position: absolute;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
+    transform-origin: 0 0;
 }
 
 .rectangle {
-    border: 1px solid var(--danger);
+    border: 2px solid var(--danger);
     background: transparent;
+    position: absolute;
+/*    transform: translate(-50%, -50%);*/
+    pointer-events: none;
 }
 
 .label {
@@ -458,7 +460,6 @@ body {
     top: 0;
     left: 0;
     pointer-events: none; /* Чтобы клики проходили сквозь overlay */
-    background: rgba(255, 0, 0, 0.3); /* Для визуализации (можно убрать) */
 }
 
 .toggle-visible {

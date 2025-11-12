@@ -101,6 +101,23 @@ function initializeUI() {
         }
     });
 
+    document.addEventListener('keydown', (event) => {
+        if (currentImageIndex !== -1) {
+            if (event.key === 'ArrowLeft' || event.key === 'a') {
+                // Действие для "назад"
+                if ((currentImageIndex - 1) >= 0) {
+                    selectImage(currentImageIndex - 1);
+                }
+            }
+            if (event.key === 'ArrowRight' || event.key === 'd') {
+                // Действие для "вперед"
+                if ((currentImageIndex + 1) < uploadedImages.length) {
+                    selectImage(currentImageIndex + 1);
+                }
+            }
+        }
+    });
+
     domCache.analyzeBtn.disabled = true;
     domCache.exportBtn.disabled = true;
     domCache.paramsBtn.disabled = true;
@@ -236,7 +253,7 @@ async function handleFileUpload(event) {
                 } else {
                     if (convertResult['result'] !== (null || undefined)) {
                         console.log('Изображение успешно конвертировано!', convertResult['result']);
-                        file = convertResult['result'][blob];
+                        file = convertResult['result']['blob'];
                         if (file.name === (null || undefined)) {
                             file.name = filePath
                         }
@@ -747,6 +764,12 @@ async function analyzeImages() {
     // Обновляем интерфейс
     updateImageList();
     if (currentImageIndex >= 0) {
+        console.log(domCache.imagePreview, domCache.imagePreview.parentElement, domCache.imagePreview.parentElement.style);
+//        console.log('wh container', `${domCache.imagePreview.parentElement.style.width}px`, `${domCache.imagePreview.parentElement.style.height}px`);
+        if (!(document.getElementById('annotationContainer'))) {
+            viewer.imageWrapper.appendChild(viewer.annotationContainer);
+        }
+
         updateDetectedObjectsList();
 
         if (!(document.getElementById('button-visible'))) {
@@ -825,6 +848,10 @@ async function analyzeImages() {
             });
             domCache.detectedObjects.parentNode.after(domCache.detectedObjects, button);
         }
+
+        const rect = domCache.imagePreview.parentElement.getBoundingClientRect();
+        document.getElementById('annotationContainer').style.height = `${rect.height}px`;
+        document.getElementById('annotationContainer').style.width = `${rect.width}px`;
     }
 
     // Восстанавливаем кнопку

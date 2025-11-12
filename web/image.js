@@ -6,6 +6,7 @@ class ImageViewer {
         this.annotationContainer = document.createElement('div');
         this.annotationContainer.id = 'annotationContainer';
         this.annotationContainer.setAttribute('visibility', 'true');
+
         this.recalcAnnotations = function () {};
 
 
@@ -112,6 +113,17 @@ class ImageViewer {
 
     updateTransform() {
         this.imageWrapper.style.transform = `translate(${this.posX}px, ${this.posY}px) scale(${this.scale})`;
+//        border-width
+
+        this.annotationContainer.querySelectorAll('.annotation').forEach(annotation => {
+//            console.log('annotation', annotation.id);
+//            console.log('scale', `scale(${1/this.scale})`);
+//            console.log('height', `${annotation.offsetHeight * this.scale}px`);
+//            console.log('width', `${annotation.offsetWidth * this.scale}px`);
+            annotation.style.transform = `scale(${1/this.scale})`;
+            annotation.style.height = `${parseInt(annotation.getAttribute('height')) * this.scale}px`;
+            annotation.style.width = `${parseInt(annotation.getAttribute('width')) * this.scale}px`;
+        });
     }
 
     setNaturalSize(width, height) {
@@ -130,8 +142,10 @@ class ImageViewer {
         let w = width * this.scale * (img.width / this.naturalWidth);
         let h = height * this.scale * (img.height / this.naturalHeight);
         let s = {
-            x: xs * this.scale + this.posX + ww + (w / 2),
-            y: ys * this.scale + this.posY + hh + (h / 2),
+//            x: xs * this.scale + this.posX + ww + (w / 2),
+//            y: ys * this.scale + this.posY + hh + (h / 2),
+            x: xs * this.scale + this.posX + ww,
+            y: ys * this.scale + this.posY + hh,
             w: w,
             h: h
         };
@@ -153,9 +167,6 @@ class ImageViewer {
 
     addRectangle(x, y, width, height, label = '', index = None) {
         this.updateTransform();
-        if (!(document.getElementById('annotationContainer'))) {
-            this.imageWrapper.appendChild(this.annotationContainer);
-        }
         const coords = this.imageToContainer(x, y, width, height);
         const rect = document.createElement('div');
         rect.className = 'annotation rectangle';
@@ -169,22 +180,26 @@ class ImageViewer {
         rect.style.height = `${coords.h}px`;
         rect.style.left = `${coords.x}px`;
         rect.style.top = `${coords.y}px`;
+        rect.setAttribute('width', `${coords.w}px`);
+        rect.setAttribute('height', `${coords.h}px`);
+        rect.setAttribute('x', `${coords.x}px`);
+        rect.setAttribute('y', `${coords.y}px`);
 
         console.log(rect);
 
         this.annotationContainer.appendChild(rect);
-        this.addLabel(coords.x, coords.y, label, index);
+        this.addLabel(coords.x, coords.y + coords.h, label, index);
     }
 
     addLabel(x, y, text, index = None) {
         if (!text) return;
 
         const label = document.createElement('div');
-        label.className = 'label';
+        label.className = 'annotation label';
         label.id = `label_${index}`;
         label.textContent = text;
         label.style.left = `${x}px`;
-        label.style.top = `calc(${y}px + 10px)`;
+        label.style.top = `calc(${y}px + 4px)`;
 
         this.annotationContainer.appendChild(label);
     }
