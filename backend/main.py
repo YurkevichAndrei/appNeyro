@@ -144,7 +144,7 @@ def detect_objects(image_path: str) -> List[dict]:
             bbox = obj.bbox.to_xywh()
             detections.append({
                 "type": obj.category.name,
-                "bbox": [int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])], # x y w h
+                "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])], # x y w h
                 "confidence": float(obj.score.value),
                 "verified": None
             })
@@ -183,9 +183,9 @@ def draw_bounding_boxes(image_path: str, detections: List[dict]):
             # Добавляем подпись
             label = f"{detection['type']} {detection['confidence']:.2f}"
             print(label)
-            text_bbox = draw.textbbox((x, y), label, font=font)
+            text_bbox = draw.textbbox((x, y + h), label, font=font)
             draw.rectangle(text_bbox, fill=color)
-            draw.text((x, y), label, fill='white', font=font)
+            draw.text((x, y + h), label, fill='white', font=font)
 
         # Сохраняем изображение
         image.save(output_path)

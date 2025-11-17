@@ -113,16 +113,11 @@ class ImageViewer {
 
     updateTransform() {
         this.imageWrapper.style.transform = `translate(${this.posX}px, ${this.posY}px) scale(${this.scale})`;
-//        border-width
 
         this.annotationContainer.querySelectorAll('.annotation').forEach(annotation => {
-//            console.log('annotation', annotation.id);
-//            console.log('scale', `scale(${1/this.scale})`);
-//            console.log('height', `${annotation.offsetHeight * this.scale}px`);
-//            console.log('width', `${annotation.offsetWidth * this.scale}px`);
             annotation.style.transform = `scale(${1/this.scale})`;
-            annotation.style.height = `${parseInt(annotation.getAttribute('height')) * this.scale}px`;
-            annotation.style.width = `${parseInt(annotation.getAttribute('width')) * this.scale}px`;
+            annotation.style.height = `${parseFloat(annotation.getAttribute('height')) * this.scale}px`;
+            annotation.style.width = `${parseFloat(annotation.getAttribute('width')) * this.scale}px`;
         });
     }
 
@@ -133,17 +128,42 @@ class ImageViewer {
 
     // Преобразование координат изображения в координаты контейнера
     imageToContainer(px, py, width, height) {
-        console.log(document.getElementById('zoomImage'));
+//        let img = document.getElementById('zoomImage');
+//        let xs = img.width * px / this.naturalWidth;
+//        let ys = img.height * py / this.naturalHeight;
+//        let ww = (this.containerWidth - img.width) / 2;
+//        let hh = (this.containerHeight - img.height) / 2;
+//        let w = width * this.scale * (img.width / this.naturalWidth);
+//        let h = height * this.scale * (img.height / this.naturalHeight);
+//        let s = {
+////            x: xs * this.scale + this.posX + ww + (w / 2),
+////            y: ys * this.scale + this.posY + hh + (h / 2),
+//            x: xs * this.scale + this.posX + ww,
+//            y: ys * this.scale + this.posY + hh,
+//            w: w,
+//            h: h
+//        };
+//        return s;
         let img = document.getElementById('zoomImage');
-        let xs = img.width * px / this.naturalWidth;
-        let ys = img.height * py / this.naturalHeight;
-        let ww = (this.containerWidth - img.width) / 2;
-        let hh = (this.containerHeight - img.height) / 2;
-        let w = width * this.scale * (img.width / this.naturalWidth);
-        let h = height * this.scale * (img.height / this.naturalHeight);
+        const rect = this.container.getBoundingClientRect();
+
+        // Получаем реальные размеры отображаемого изображения
+        const displayWidth = img.width;
+        const displayHeight = img.height;
+
+        // Масштабируем координаты относительно отображаемого размера
+        let xs = displayWidth * px / this.naturalWidth;
+        let ys = displayHeight * py / this.naturalHeight;
+
+        // Вычисляем смещение для центрирования
+        let ww = (this.containerWidth - displayWidth * this.scale) / 2;
+        let hh = (this.containerHeight - displayHeight * this.scale) / 2;
+
+        // Учитываем текущую позицию и масштаб
+        let w = width * this.scale * (displayWidth / this.naturalWidth);
+        let h = height * this.scale * (displayHeight / this.naturalHeight);
+
         let s = {
-//            x: xs * this.scale + this.posX + ww + (w / 2),
-//            y: ys * this.scale + this.posY + hh + (h / 2),
             x: xs * this.scale + this.posX + ww,
             y: ys * this.scale + this.posY + hh,
             w: w,
@@ -168,6 +188,7 @@ class ImageViewer {
     addRectangle(x, y, width, height, label = '', index = None) {
         this.updateTransform();
         const coords = this.imageToContainer(x, y, width, height);
+        console.log(label, coords);
         const rect = document.createElement('div');
         rect.className = 'annotation rectangle';
         rect.id = `rect_${index}`;
@@ -199,7 +220,10 @@ class ImageViewer {
         label.id = `label_${index}`;
         label.textContent = text;
         label.style.left = `${x}px`;
-        label.style.top = `calc(${y}px + 4px)`;
+        label.style.top = `calc(${y}px + 0px)`;
+        label.setAttribute('x', `${x}`);
+        label.setAttribute('y', `${y}`);
+        label.setAttribute('yy', `${0}`);
 
         this.annotationContainer.appendChild(label);
     }

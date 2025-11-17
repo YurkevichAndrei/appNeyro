@@ -96,7 +96,7 @@ function initializeUI() {
         const thumbnail = e.target.closest('.image-item');
         if (thumbnail) {
             console.log('click image list');
-            const index = parseInt(thumbnail.getAttribute('data-index'));
+            const index = parseInt(thumbnail.getAttribute('data-index'), 10);
             selectImage(index);
         }
     });
@@ -546,9 +546,15 @@ function updateImageList() {
 
 // Выбор изображения для просмотра (оптимизированная версия)
 function selectImage(index) {
-    if (index === currentImageIndex) return; // Уже выбрано это изображение
-
     currentImageIndex = index;
+    if (detectedObjects.lenght !== 0) {
+        // Обновляем список распознанных объектов
+        updateDetectedObjectsList();
+    }
+
+//    if (index === currentImageIndex) return; // Уже выбрано это изображение
+
+
     const image = uploadedImages[index];
 
 //    domCache.imagePreview.innerHTML = "";
@@ -569,8 +575,6 @@ function selectImage(index) {
     // Обновляем название текущего изображения
 //    domCache.currentImageName.textContent = image.name;
 
-    // Обновляем список распознанных объектов
-    updateDetectedObjectsList();
 
     // Обновляем активный класс в списке изображений (быстрый способ)
     const items = domCache.imageList.querySelectorAll('.image-item');
@@ -696,7 +700,7 @@ function updateDetectedObjectsList() {
     domCache.detectedObjects.addEventListener('change', function(e) {
         if (e.target.classList.contains('object-checkbox')) {
             const imageId = e.target.getAttribute('data-image');
-            const objIndex = parseInt(e.target.getAttribute('data-index'));
+            const objIndex = parseInt(e.target.getAttribute('data-index'), 10);
             detectedObjects[imageId]['detections'][objIndex].verified = e.target.checked;
 
             var image = domCache.imageList.querySelector('.image-item.active');
@@ -707,8 +711,40 @@ function updateDetectedObjectsList() {
             badge.classList.replace('bg-danger', 'bg-secondary');
             badge.innerText = '?';
 //            saveToLocalStorage();
+            e.target.setAttribute('checked', e.target.checked);
+            var button = document.getElementById('button-checked')
+            let checked = document.querySelectorAll('.object-checkbox').forEach(checkbox => {
+                if (!checkbox.checked) {
+                    return false;
+                }
+            });
+            if (!checked) {
+                button.setAttribute('checked', 'true');
+                button.innerHTML = `Выделить все`;
+            } else {
+                button.innerHTML = `Сбросить`;
+                button.setAttribute('checked', 'false');
+            }
         }
     });
+
+    if (document.getElementById('button-checked')) {
+        let button = document.getElementById('button-checked');
+        let checked = document.querySelectorAll('.object-checkbox').forEach(checkbox => {
+            if (!checkbox.checked) {
+                return false;
+            }
+        });
+        if (!checked) {
+            button.setAttribute('checked', 'true');
+            button.innerHTML = `Выделить все`;
+        } else {
+            button.innerHTML = `Сбросить`;
+            button.setAttribute('checked', 'false');
+        }
+
+    }
+
     domCache.detectedObjectsCard.hidden = false;
     domCache.exportBtn.hidden = false;
 }
@@ -723,8 +759,9 @@ async function analyzeImages() {
     // Показываем индикатор загрузки
     const analyzeBtn = domCache.analyzeBtn;
     const originalText = analyzeBtn.innerHTML;
-    analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Анализ...';
+    analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Поиск...';
     analyzeBtn.disabled = true;
+    domCache.paramsBtn.disabled = true;
     console.log('uploadedImages', uploadedImages);
     imagePaths = images.map(image => image.uploaded_path);
     console.log('imagePaths', imagePaths);
@@ -772,6 +809,46 @@ async function analyzeImages() {
 
         updateDetectedObjectsList();
 
+        if (!(document.getElementById('button-bar-detected'))) {
+            let bar = document.createElement('div');
+            bar.id = 'button-bar-detected';
+            bar.className = 'd-flex';
+            domCache.detectedObjects.parentNode.insertBefore(bar, domCache.detectedObjects);
+        }
+
+        if (!(document.getElementById('button-checked'))) {
+            let button = document.createElement('button');
+            button.className = 'btn btn-accent me-2';
+            button.setAttribute('type', 'button');
+            button.setAttribute('checked', 'false');
+            button.id = 'button-checked';
+            button.innerHTML = `Выделить все`;
+            button.addEventListener('click', function() {
+                const checked = button.getAttribute('checked');
+                if (checked === 'true') {
+                    button.innerHTML = `Выделить все`;
+                    button.setAttribute('checked', 'false');
+                    document.querySelectorAll('.object-checkbox').forEach(checkbox => {
+                        if (!checkbox.checked) {
+                            checkbox.click();
+                        }
+                        checkbox.setAttribute('checked', 'false');
+                    });
+                } else {
+                    button.innerHTML = `Сбросить`;
+                    button.setAttribute('checked', 'true');
+                    document.querySelectorAll('.object-checkbox').forEach(checkbox => {
+                        if (checkbox.checked) {
+                            checkbox.click();
+                        }
+                        checkbox.setAttribute('checked', 'true');
+                    });
+                }
+
+            });
+            document.getElementById('button-bar-detected').insertAdjacentElement('afterbegin', button);
+        }
+
         if (!(document.getElementById('button-visible'))) {
             let button = document.createElement('button');
             button.className = 'btn btn-accent me-2';
@@ -784,14 +861,14 @@ async function analyzeImages() {
                 if (visibility === 'true') {
                     button.innerHTML = `Показать все`;
                     button.setAttribute('visibility', 'false');
-                    document.querySelectorAll('.toggle-visible').forEach(button => {
-                        const index = button.getAttribute('data-index');
+                    document.querySelectorAll('.toggle-visible').forEach(button_visible => {
+                        const index = button_visible.getAttribute('data-index');
                         let rect = document.getElementById(`rect_${index}`);
                         let label = document.getElementById(`label_${index}`);
                         rect.style.display = 'none';
                         label.style.display = 'none';
-                        button.setAttribute('visibility', 'false');
-                        button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-slash" viewBox="0 0 16 16">
+                        button_visible.setAttribute('visibility', 'false');
+                        button_visible.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-slash" viewBox="0 0 16 16">
                             <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z"/>
                             <path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829l.822.822zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829z"/>
                             <path d="M3.35 5.47c-.18.16-.353.322-.518.487A13.134 13.134 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7.029 7.029 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12-.708.708z"/>
@@ -800,15 +877,15 @@ async function analyzeImages() {
                 } else {
                     button.innerHTML = `Скрыть все`;
                     button.setAttribute('visibility', 'true');
-                    document.querySelectorAll('.toggle-visible').forEach(button => {
-                        const index = button.getAttribute('data-index');
+                    document.querySelectorAll('.toggle-visible').forEach(button_visible => {
+                        const index = button_visible.getAttribute('data-index');
                         let rect = document.getElementById(`rect_${index}`);
                         let label = document.getElementById(`label_${index}`);
                         document.getElementById(`annotationContainer`).style.display = 'flex';
                         rect.style.display = 'flex';
                         label.style.display = 'flex';
-                        button.setAttribute('visibility', 'true');
-                        button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
+                        button_visible.setAttribute('visibility', 'true');
+                        button_visible.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
                             <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
                             <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
                         </svg>`;
@@ -816,7 +893,8 @@ async function analyzeImages() {
                 }
 
             });
-            domCache.detectedObjects.parentNode.insertBefore(button, domCache.detectedObjects);
+//            domCache.detectedObjects.parentNode.insertBefore(button, domCache.detectedObjects);
+            document.getElementById('button-bar-detected').insertAdjacentElement('beforeend', button);
         }
 
         if (!(document.getElementById('button-confirm'))) {
@@ -846,7 +924,8 @@ async function analyzeImages() {
                     badge.innerText = '✓';
                 }
             });
-            domCache.detectedObjects.parentNode.after(domCache.detectedObjects, button);
+//            domCache.detectedObjects.parentNode.after(domCache.detectedObjects, button);
+            domCache.detectedObjects.parentNode.insertAdjacentElement('beforeend', button);
         }
 
         const rect = domCache.imagePreview.parentElement.getBoundingClientRect();
@@ -864,7 +943,6 @@ async function analyzeImages() {
     domCache.uploadBtn.disabled = true;
     domCache.analyzeBtn.disabled = false;
     domCache.exportBtn.disabled = false;
-    domCache.paramsBtn.disabled = true;
 }
 
 async function exportImages() {

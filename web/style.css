@@ -430,6 +430,7 @@ body {
 }
 
 .annotation {
+    position: absolute;
     transform-origin: 0 0;
 }
 
@@ -460,6 +461,7 @@ body {
     top: 0;
     left: 0;
     pointer-events: none; /* Чтобы клики проходили сквозь overlay */
+    transform-origin: 0 0;
 }
 
 .toggle-visible {
@@ -474,8 +476,19 @@ body {
     justify-content: center;
 }
 
+#button-bar-detected {
+    width: 100%;
+    margin: 0 0 8px 0 !important;
+}
+
+#button-checked {
+    margin: 0 auto 0 0 !important;
+    display: block;
+/*    width: 100% !important;*/
+}
+
 #button-visible {
-    margin: 0 0 8px auto !important;
+    margin: 0 0 0 auto !important;
     display: block;
 /*    width: 100% !important;*/
 }
