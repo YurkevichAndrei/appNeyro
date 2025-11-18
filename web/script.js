@@ -712,37 +712,38 @@ function updateDetectedObjectsList() {
             badge.innerText = '?';
 //            saveToLocalStorage();
             e.target.setAttribute('checked', e.target.checked);
-            var button = document.getElementById('button-checked')
-            let checked = document.querySelectorAll('.object-checkbox').forEach(checkbox => {
+            let button = document.getElementById('button-checked');
+            let checked = true;
+            document.querySelectorAll('.object-checkbox').forEach(checkbox => {
                 if (!checkbox.checked) {
-                    return false;
+                    checked = false;
                 }
             });
             if (!checked) {
-                button.setAttribute('checked', 'true');
+                button.setAttribute('checked', 'false');
                 button.innerHTML = `Выделить все`;
             } else {
                 button.innerHTML = `Сбросить`;
-                button.setAttribute('checked', 'false');
+                button.setAttribute('checked', 'true');
             }
         }
     });
 
     if (document.getElementById('button-checked')) {
         let button = document.getElementById('button-checked');
-        let checked = document.querySelectorAll('.object-checkbox').forEach(checkbox => {
+        let checked = true;
+        document.querySelectorAll('.object-checkbox').forEach(checkbox => {
             if (!checkbox.checked) {
-                return false;
+                checked = false;
             }
         });
         if (!checked) {
-            button.setAttribute('checked', 'true');
+            button.setAttribute('checked', 'false');
             button.innerHTML = `Выделить все`;
         } else {
             button.innerHTML = `Сбросить`;
-            button.setAttribute('checked', 'false');
+            button.setAttribute('checked', 'true');
         }
-
     }
 
     domCache.detectedObjectsCard.hidden = false;
@@ -829,7 +830,7 @@ async function analyzeImages() {
                     button.innerHTML = `Выделить все`;
                     button.setAttribute('checked', 'false');
                     document.querySelectorAll('.object-checkbox').forEach(checkbox => {
-                        if (!checkbox.checked) {
+                        if (checkbox.checked) {
                             checkbox.click();
                         }
                         checkbox.setAttribute('checked', 'false');
@@ -838,7 +839,7 @@ async function analyzeImages() {
                     button.innerHTML = `Сбросить`;
                     button.setAttribute('checked', 'true');
                     document.querySelectorAll('.object-checkbox').forEach(checkbox => {
-                        if (checkbox.checked) {
+                        if (!checkbox.checked) {
                             checkbox.click();
                         }
                         checkbox.setAttribute('checked', 'true');
