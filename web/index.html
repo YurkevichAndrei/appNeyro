@@ -123,10 +123,17 @@
             </div>
             <div class="modal-body">
                 <form id="settingsForm">
+                    <div class="mb-3">
+                        <label for="modelType" class="form-label">Модель</label>
+                        <select class="form-select custom-select" id="modelType">
+                            <option value="visible" selected>Видимый диапазон</option>
+                            <option value="infrared">Инфракрасный диапазон</option>
+                        </select>
+                    </div>
                     <div class="mb-3" id="">
                         <label for="detectionLimit" class="form-label">Предел распознавания</label>
                         <input type="range" class="form-range custom-slider" id="detectionLimit" min="0.1" max="1" step="0.01" value="0.5">
-                        <div class="form-text">Текущее значение: <span id="detectionLimitValue">0.5</span></div>
+                        <div class="form-text">Текущее значение: <span id="detectionLimitValue">50%</span></div>
                     </div>
                     <div class="mb-3">
                         <label for="detectionSlice" class="form-label">Размер фрагмента распознавания (пиксели)</label>
@@ -139,22 +146,13 @@
                         <div class="form-text">Текущее значение: <span id="detectionOverlapValue">0.3</span></div>
                     </div>
                     <div class="mb-3 form-check form-switch">
-                        <input type="checkbox" class="form-check-input" id="georeference" checked>
+                        <input type="checkbox" class="form-check-input" id="georeference">
                         <label class="form-check-label" for="georeference">Геопривязка</label>
                     </div>
                     <div class="mb-3">
                         <label for="pixelSize" class="form-label">Размер пикселя (см)</label>
-                        <input type="number" class="form-control custom-input" id="pixelSize" min="0.1" step="0.1" value="5.0">
+                        <input type="number" class="form-control custom-input" id="pixelSize" min="0.1" step="0.1" value="5.0" disabled>
                     </div>
-<!--                    <div class="mb-3">-->
-<!--                        <label for="objectTheme" class="form-label">Тематика объектов</label>-->
-<!--                        <select class="form-select custom-select" id="objectTheme">-->
-<!--                            <option value="animals" selected>Животные</option>-->
-<!--                            <option value="vehicles">Транспорт</option>-->
-<!--                            <option value="plants">Растения</option>-->
-<!--                            <option value="buildings">Здания</option>-->
-<!--                        </select>-->
-<!--                    </div>-->
                 </form>
             </div>
             <div class="modal-footer">

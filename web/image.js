@@ -185,7 +185,7 @@ class ImageViewer {
         this.addLabel(x, y, label);
     }
 
-    addRectangle(x, y, width, height, label = '', index = None) {
+    addRectangle(x, y, width, height, label = '', index = None, color = '#f94144c7') {
         this.updateTransform();
         const coords = this.imageToContainer(x, y, width, height);
         console.log(label, coords);
@@ -205,6 +205,8 @@ class ImageViewer {
         rect.setAttribute('height', `${coords.h}px`);
         rect.setAttribute('x', `${coords.x}px`);
         rect.setAttribute('y', `${coords.y}px`);
+
+        rect.style.setProperty('--color-border', `${color}`);
 
         console.log(rect);
 

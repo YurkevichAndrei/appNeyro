@@ -3,6 +3,7 @@ let uploadedImages = [];
 let currentImageIndex = -1;
 let detectedObjects = {};
 let settings = {
+    modelType: 'visible',
     detectionLimit: 0.5,
     georeference: false,
     pixelSize: 5.0
@@ -60,6 +61,12 @@ function initializeDomCache() {
 
 // Инициализация элементов интерфейса
 function initializeUI() {
+    window.addEventListener('beforeunload', (event) => {
+        event.preventDefault(); // Обязательно для работы подтверждения
+        event.returnValue = ''; // Стандартное сообщение (браузер может его изменить)
+        // Дополнительные действия (например, очистка localStorage)
+    });
+
     // Обработчики для кнопок
     domCache.uploadBtn.addEventListener('click', function() {
         domCache.fileInput.click();
@@ -72,7 +79,7 @@ function initializeUI() {
 
     // Обработчик для ползунка предела распознавания
     domCache.detectionLimit.addEventListener('input', function() {
-        domCache.detectionLimitValue.textContent = this.value;
+        domCache.detectionLimitValue.textContent = `${parseInt(parseFloat(this.value).toFixed(2) * 100, 10)}%`; // Округление до 2 знаков после запятой
     });
     domCache.detectionSlice.addEventListener('input', function() {
         domCache.detectionSliceValue.textContent = this.value;
@@ -614,6 +621,14 @@ function updateDetectedObjectsList() {
         button_visible.innerHTML = `Скрыть все`;
     }
 
+    let color = '#f94144c7';
+    if (settings.modelType === 'infrared') {
+//        color = '#78ff00c7';
+        color = '#30ff43c7';
+    } else {
+        color = '#f94144c7';
+    }
+
     let html = '';
     detectedObjects[imageId]['detections'].forEach((obj, index) => {
         const checked = obj.verified ? 'checked' : '';
@@ -632,7 +647,7 @@ function updateDetectedObjectsList() {
             </div>
         `;
 
-        viewer.addRectangle(obj.bbox[0], obj.bbox[1], obj.bbox[2], obj.bbox[3], `${index + 1}. ${obj.type} ${(obj.confidence * 100).toFixed(1)}`, index);
+        viewer.addRectangle(obj.bbox[0], obj.bbox[1], obj.bbox[2], obj.bbox[3], `${index + 1}. ${obj.type} ${(obj.confidence * 100).toFixed(1)}`, index, color);
     });
 
     domCache.detectedObjects.innerHTML = html;
@@ -1151,6 +1166,8 @@ function exportResults() {
 
 // Сохранение настроек
 async function saveSettings() {
+    console.log('modelType', document.getElementById('modelType').value);
+    settings.modelType = document.getElementById('modelType').value;
     settings.detectionLimit = parseFloat(document.getElementById('detectionLimit').value);
     settings.detectionSlice = parseInt(document.getElementById('detectionSlice').value, 10);
     settings.detectionOverlap = parseFloat(document.getElementById('detectionOverlap').value);
@@ -1161,6 +1178,7 @@ async function saveSettings() {
     let requestData = {
         'settings': settings
     };
+    console.log('requestData', requestData);
     // Отправляем POST запрос на эндпоинт /detect/settings
     const response = await fetch('server/detect/settings', {
         method: 'POST',

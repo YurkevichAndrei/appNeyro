@@ -1,9 +1,9 @@
 import io
+import json
 import os
 import tempfile
 import uuid
 from datetime import datetime
-from fileinput import filename
 from pathlib import Path
 from zipfile import ZipFile
 from openpyxl import Workbook
@@ -93,6 +93,9 @@ detect_settings = DetectionSettingsRequest(settings={
     "pixelSize": 5.0
 })
 
+with open('../config.json', 'r') as config_file:
+    config = json.load(config_file)
+
 uploaded_files = {}
 
 # Инициализация модели при запуске
@@ -103,7 +106,13 @@ async def startup_event():
 
 # Функция для загрузки модели
 def load_model():
+    global MODEL_PATH
     global detection_model
+    for model in config['models']:
+        if model['type'] == detect_settings.settings['model_type']:
+            MODEL_PATH = f'models/{model["filename"]}'
+            break
+
     try:
         detection_model = AutoDetectionModel.from_pretrained(
             model_type="ultralytics",
@@ -600,6 +609,7 @@ async def export_xlsx_data_detect(request: List[DetectionResult]):
 @app.post("/detect/settings")
 async def update_detect_settings(request: DetectionSettingsRequest):
     print(request.settings)
+    detect_settings.settings['model_type'] = request.settings['modelType']
     detect_settings.settings['confidence_threshold'] = float(request.settings['detectionLimit'])
     detect_settings.settings['slice_size'] = int(request.settings['detectionSlice'])
     detect_settings.settings['overlap_ratio'] = float(request.settings['detectionOverlap'])

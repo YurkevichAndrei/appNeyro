@@ -2,5 +2,17 @@
   "server": {
     "host": "127.0.0.1",
     "port": 8000
-  }
+  },
+  "models": [
+    {
+      "name": "Видимый диапазон",
+      "filename": "yolo_rgb_weights_obb_301025.pt",
+      "type": "visible"
+    },
+    {
+      "name": "Инфракрасный диапазон",
+      "filename": "yolo_infra_weights_obb.pt",
+      "type": "infrared"
+    }
+  ]
 }

@@ -14,6 +14,7 @@
     --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     --transition: all 0.3s ease;
     --row-min-height: 55vh;
+    --color-border: #f94144c7;
 }
 
 body {
@@ -281,10 +282,19 @@ body {
 
 /* Распознанные объекты */
 .detected-objects {
-    min-height: var(--row-min-height);
-    height: var(--row-min-height);
+/*    min-height: var(--row-min-height);*/
+/*    height: var(--row-min-height);*/
     overflow-y: auto;
     align-items: auto;
+    margin-bottom: 8px;
+/*    flex-wrap: wrap;*/
+}
+
+.card-body:has(.detected-objects) {
+    display: flex;
+    flex-direction: column; /* Вертикальное направление */
+    height: var(--row-min-height);
+/*    flex-wrap: wrap;*/
 }
 
 .object-item {
@@ -435,7 +445,7 @@ body {
 }
 
 .rectangle {
-    border: 2px solid var(--danger);
+    border: 2px solid var(--color-border);
     background: transparent;
     position: absolute;
 /*    transform: translate(-50%, -50%);*/
@@ -494,9 +504,10 @@ body {
 }
 
 #button-confirm {
-    margin: 0 !important;
+    margin: auto 0 0 0 !important;
     padding: 8px 0 !important;
     width: 100%;
+    display: block;
 }
 
 /* Адаптивность */
