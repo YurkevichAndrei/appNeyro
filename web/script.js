@@ -110,16 +110,45 @@ function initializeUI() {
 
     document.addEventListener('keydown', (event) => {
         if (currentImageIndex !== -1) {
-            if (event.key === 'ArrowLeft' || event.key === 'a') {
+            if (event.key === 'ArrowLeft') {
                 // Действие для "назад"
                 if ((currentImageIndex - 1) >= 0) {
                     selectImage(currentImageIndex - 1);
                 }
             }
-            if (event.key === 'ArrowRight' || event.key === 'd') {
+            if (event.key === 'ArrowRight') {
                 // Действие для "вперед"
                 if ((currentImageIndex + 1) < uploadedImages.length) {
                     selectImage(currentImageIndex + 1);
+                }
+            }
+            if (event.key === 'Enter' || event.key === ' ') {
+                const buttonConfirm = document.getElementById('button-confirm');
+                if (buttonConfirm) {
+                    buttonConfirm.click();
+                }
+            }
+            if (event.ctrlKey && event.code === 'KeyA') {
+                const buttonChecked = document.getElementById('button-checked');
+                if (buttonChecked) {
+                    event.preventDefault(); // Блокирует стандартное поведение браузера
+                    buttonChecked.setAttribute('checked', 'false');
+                    buttonChecked.click();
+                }
+            }
+            if (event.ctrlKey && event.code === 'KeyZ') {
+                const buttonChecked = document.getElementById('button-checked');
+                if (buttonChecked) {
+                    event.preventDefault(); // Блокирует стандартное поведение браузера
+                    buttonChecked.setAttribute('checked', 'true');
+                    buttonChecked.click();
+                }
+            }
+            if (event.ctrlKey && event.code === 'KeyV') {
+                const buttonVisible = document.getElementById('button-visible');
+                if (buttonVisible) {
+                    event.preventDefault(); // Блокирует стандартное поведение браузера
+                    buttonVisible.click();
                 }
             }
         }
@@ -520,8 +549,14 @@ function updateImageList() {
         let badge = '';
         console.log(image);
         if (image.analyzed !== null) {
-            const badgeClass = image.analyzed ? 'bg-success' : 'bg-secondary';
-            const badgeIcon = image.analyzed ? '✓' : '?';
+            let badgeClass = image.analyzed ? 'bg-success' : 'bg-secondary';
+            let badgeIcon = image.analyzed ? '✓' : '?';
+
+            if (detectedObjects[image.id]['detections'].length === 0) {
+                badgeClass = 'bg-danger';
+                badgeIcon = '✕';
+            }
+
             badge = `<div class="thumbnail-badge ${badgeClass}">${badgeIcon}</div>`;
         }
 
@@ -554,7 +589,7 @@ function updateImageList() {
 // Выбор изображения для просмотра (оптимизированная версия)
 function selectImage(index) {
     currentImageIndex = index;
-    if (detectedObjects.lenght !== 0) {
+    if (Object.keys(detectedObjects).length !== 0) {
         // Обновляем список распознанных объектов
         updateDetectedObjectsList();
     }
@@ -606,14 +641,26 @@ function updateDetectedObjectsList() {
     if (!detectedObjects[imageId] || detectedObjects[imageId]['detections'].length === 0) {
         domCache.detectedObjects.innerHTML = `
             <div class="empty-state">
-                <i class="fas fa-search mb-3"></i>
-                <p class="text-muted">Объекты будут отображены здесь после анализа</p>
+                <i class="bi bi-emoji-frown mb-3"></i>
+                <p class="text-muted">Объекты не найдены на выбранном изображении</p>
             </div>
         `;
+        if (document.getElementById('button-visible')) {
+            document.getElementById('button-visible').hidden = true;
+            document.getElementById('button-checked').hidden = true;
+            document.getElementById('button-confirm').hidden = true;
+        }
+        viewer.clearAnnotations();
         return;
     }
 
     viewer.clearAnnotations();
+
+    if (document.getElementById('button-visible')) {
+        document.getElementById('button-visible').hidden = false;
+        document.getElementById('button-checked').hidden = false;
+        document.getElementById('button-confirm').hidden = false;
+    }
 
     if (document.getElementById('button-visible') !== null) {
         var button_visible = document.getElementById('button-visible');
@@ -923,21 +970,30 @@ async function analyzeImages() {
                 var detectObjects = domCache.detectedObjects.children;
                 const imageId = detectObjects[0].children[0].getAttribute('data-image');
                 let verifiedObjects = 0;
-                detectedObjects[imageId]['detections'].forEach(obj => {
-                    if (obj.verified) {
-                        verifiedObjects++;
+                if (detectedObjects[imageId]) {
+                    detectedObjects[imageId]['detections'].forEach(obj => {
+                        if (obj.verified) {
+                            verifiedObjects++;
+                        }
+                    });
+                    var image = domCache.imageList.querySelector('.image-item.active');
+                    const data_index = image.getAttribute('data-index');
+                    uploadedImages[data_index].analyzed = true;
+                    var badge = image.querySelector('.thumbnail-badge');
+                    if (detectObjects.length === 0 || verifiedObjects === 0) {
+                        badge.classList.replace('bg-secondary', 'bg-danger');
+                        badge.innerText = '✕';
+                    } else {
+                        badge.classList.replace('bg-secondary', 'bg-success');
+                        badge.innerText = '✓';
                     }
-                });
-                var image = domCache.imageList.querySelector('.image-item.active');
-                const data_index = image.getAttribute('data-index');
-                uploadedImages[data_index].analyzed = true;
-                var badge = image.querySelector('.thumbnail-badge');
-                if (detectObjects.length === 0 || verifiedObjects === 0) {
+                } else {
+                    var image = domCache.imageList.querySelector('.image-item.active');
+                    const data_index = image.getAttribute('data-index');
+                    uploadedImages[data_index].analyzed = true;
+                    var badge = image.querySelector('.thumbnail-badge');
                     badge.classList.replace('bg-secondary', 'bg-danger');
                     badge.innerText = '✕';
-                } else {
-                    badge.classList.replace('bg-secondary', 'bg-success');
-                    badge.innerText = '✓';
                 }
             });
 //            domCache.detectedObjects.parentNode.after(domCache.detectedObjects, button);
