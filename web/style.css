@@ -474,7 +474,7 @@ body {
     transform-origin: 0 0;
 }
 
-.toggle-visible {
+.toggle {
     font-size: 0.8rem;
     color: var(--gray);
     margin-left: auto;

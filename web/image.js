@@ -128,22 +128,6 @@ class ImageViewer {
 
     // Преобразование координат изображения в координаты контейнера
     imageToContainer(px, py, width, height) {
-//        let img = document.getElementById('zoomImage');
-//        let xs = img.width * px / this.naturalWidth;
-//        let ys = img.height * py / this.naturalHeight;
-//        let ww = (this.containerWidth - img.width) / 2;
-//        let hh = (this.containerHeight - img.height) / 2;
-//        let w = width * this.scale * (img.width / this.naturalWidth);
-//        let h = height * this.scale * (img.height / this.naturalHeight);
-//        let s = {
-////            x: xs * this.scale + this.posX + ww + (w / 2),
-////            y: ys * this.scale + this.posY + hh + (h / 2),
-//            x: xs * this.scale + this.posX + ww,
-//            y: ys * this.scale + this.posY + hh,
-//            w: w,
-//            h: h
-//        };
-//        return s;
         let img = document.getElementById('zoomImage');
         const rect = this.container.getBoundingClientRect();
 
@@ -239,6 +223,40 @@ class ImageViewer {
         this.posX = 0;
         this.posY = 0;
         this.updateTransform();
+    }
+
+    focusOnBBox(bbox) {
+        this.recalcAnnotations();
+        // bbox = [x, y, width, height] в координатах исходного изображения
+
+        // Вычисляем центр bounding box
+        const centerX = bbox[0] + bbox[2] / 2;
+        const centerY = bbox[1] + bbox[3] / 2;
+
+        // Получаем размеры контейнера
+        const rect = this.container.getBoundingClientRect();
+        const containerCenterX = rect.width / 2;
+        const containerCenterY = rect.height / 2;
+
+        // Вычисляем необходимый масштаб, чтобы объект занимал примерно 50% области просмотра
+        const targetScale = Math.min(
+            rect.width / (bbox[2] * 2), // чтобы ширина объекта была примерно половина контейнера
+            rect.height / (bbox[3] * 2), // чтобы высота объекта была примерно половина контейнера
+            5 // максимальный масштаб (можно настроить)
+        );
+
+        // Устанавливаем новый масштаб
+        this.scale = Math.max(0.1, Math.min(80, targetScale));
+
+        const coords = this.imageToContainer(bbox[0], bbox[1], bbox[2], bbox[3]);
+
+        // Устанавливаем позицию для центрирования объекта
+        this.posX = coords.x;
+        this.posY = coords.y;
+
+        // Обновляем трансформацию
+        this.updateTransform();
+
     }
 }
 
