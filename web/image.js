@@ -155,6 +155,39 @@ class ImageViewer {
         };
         return s;
     }
+//    imageToContainer(px, py, width, height) {
+//        let img = document.getElementById('zoomImage');
+//
+//        // Получаем реальные размеры отображаемого изображения
+//        const displayWidth = img.width;
+//        const displayHeight = img.height;
+//
+//        // 1. Координаты точки (px, py) относительно top-left img (в display пикселях)
+//        let xs = displayWidth * px / this.naturalWidth;
+//        let ys = displayHeight * py / this.naturalHeight;
+//
+//        // 2. Начальное смещение img внутри imagePreview (left0, top0)
+//        // Используем this.containerWidth/Height, установленные в updateContainerSize
+//        const left0 = (this.containerWidth - displayWidth) / 2;
+//        const top0 = (this.containerHeight - displayHeight) / 2;
+//
+//        // 3. Вычисляем финальную позицию на экране (Screen X = posX + scale * (left0 + xs))
+//        // Это формула для трансформации translate(T) scale(S) с transform-origin: 0 0
+//        let screenX = this.posX + this.scale * (left0 + xs);
+//        let screenY = this.posY + this.scale * (top0 + ys);
+//
+//        // 4. Вычисляем масштабированные размеры w, h
+//        let w = width * this.scale * (displayWidth / this.naturalWidth);
+//        let h = height * this.scale * (displayHeight / this.naturalHeight);
+//
+//        let s = {
+//            x: screenX,
+//            y: screenY,
+//            w: w,
+//            h: h
+//        };
+//        return s;
+//    }
 
     // Добавление геометрических фигур
     addCircle(x, y, radius, label = '') {
@@ -226,38 +259,54 @@ class ImageViewer {
     }
 
     focusOnBBox(bbox) {
-        this.recalcAnnotations();
         // bbox = [x, y, width, height] в координатах исходного изображения
+        this.recalcAnnotations();
 
-        // Вычисляем центр bounding box
+        const img = document.getElementById('zoomImage');
+        if (!img || !this.naturalWidth || !this.naturalHeight) return;
+
+        // Центр bbox в координатах оригинального изображения
         const centerX = bbox[0] + bbox[2] / 2;
         const centerY = bbox[1] + bbox[3] / 2;
 
-        // Получаем размеры контейнера
-        const rect = this.container.getBoundingClientRect();
-        const containerCenterX = rect.width / 2;
-        const containerCenterY = rect.height / 2;
+        // Размеры контейнера и его центр (используем Math.round для устойчивости)
+        const containerW = this.containerWidth;
+        const containerH = this.containerHeight;
+        const containerCenterX = Math.round(containerW / 2);
+        const containerCenterY = Math.round(containerH / 2);
 
-        // Вычисляем необходимый масштаб, чтобы объект занимал примерно 50% области просмотра
+        // Отображаемые (рендерные) размеры изображения
+        const displayW = img.width;
+        const displayH = img.height;
+        if (displayW === 0 || displayH === 0) return;
+
+        // Целевой масштаб
         const targetScale = Math.min(
-            rect.width / (bbox[2] * 2), // чтобы ширина объекта была примерно половина контейнера
-            rect.height / (bbox[3] * 2), // чтобы высота объекта была примерно половина контейнера
-            5 // максимальный масштаб (можно настроить)
+            containerW / (bbox[2] * displayW / this.naturalWidth * 1.5), // 1.5 вместо 2, чтобы дать небольшой отступ
+            containerH / (bbox[3] * displayH / this.naturalHeight * 1.5),
+            80
         );
+        this.scale = Math.max(0.1, targetScale);
 
-        // Устанавливаем новый масштаб
-        this.scale = Math.max(0.1, Math.min(80, targetScale));
+        // Координаты центра bbox относительно top-left img (в display пикселях)
+        const displayCenterX = displayW * centerX / this.naturalWidth;
+        const displayCenterY = displayH * centerY / this.naturalHeight;
 
-        const coords = this.imageToContainer(bbox[0], bbox[1], bbox[2], bbox[3]);
+        // Начальное (несмасштабированное) смещение img внутри imagePreview
+        const left0 = (containerW - displayW) / 2;
+        const top0 = (containerH - displayH) / 2;
 
-        // Устанавливаем позицию для центрирования объекта
-        this.posX = coords.x;
-        this.posY = coords.y;
+        // Формула для translate(T) scale(S):
+        // Screen X = posX + scale * (left0 + displayCenterX)
+        // Мы хотим, чтобы Screen X = containerCenterX
+        // => posX = containerCenterX - scale * (left0 + displayCenterX)
+        this.posX = containerCenterX - this.scale * (left0 + displayCenterX);
+        this.posY = containerCenterY - this.scale * (top0 + displayCenterY);
 
         // Обновляем трансформацию
         this.updateTransform();
-
     }
+
 }
 
 // Инициализация после загрузки изображения
